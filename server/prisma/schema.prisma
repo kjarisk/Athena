@@ -1,0 +1,628 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// User & Authentication
+// ============================================
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  passwordHash      String
+  name              String
+  settings          Json     @default("{}")
+  gamificationStats Json     @default("{}")
+  
+  employees         Employee[]
+  events            Event[]
+  actions           Action[]
+  responsibilities  UserResponsibility[]
+  skillNodes        UserSkillNode[]
+  achievements      UserAchievement[]
+  challenges        UserChallenge[]
+  workAreas         WorkArea[]
+  teams             Team[]
+  cadenceRules      CadenceRule[]
+  aiContextRules    AIContextRule[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ============================================
+// Work Areas (User-defined areas/roles)
+// ============================================
+model WorkArea {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String
+  color       String   @default("#D4A574")
+  icon        String   @default("briefcase")
+  description String?
+  sortOrder   Int      @default(0)
+  isHidden    Boolean  @default(false)
+  
+  employees   Employee[]
+  actions     Action[]
+  events      Event[]
+  teams       Team[]
+  cadenceRules CadenceRule[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// ============================================
+// Employee Management
+// ============================================
+model Employee {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workAreaId      String?
+  workArea        WorkArea?      @relation(fields: [workAreaId], references: [id])
+  
+  name            String
+  email           String?
+  role            String
+  team            String
+  startDate       DateTime
+  birthday        DateTime?
+  status          EmployeeStatus @default(ACTIVE)
+  avatarUrl       String?
+  strengths       String[]
+  growthAreas     String[]
+  developmentPlan Json?
+  
+  actions         Action[]       @relation("EmployeeActions")
+  delegatedActions Action[]      @relation("DelegatedActions")
+  eventParticipations EventParticipant[]
+  notes           EmployeeNote[]
+  oneOnOnes       OneOnOne[]
+  skills          EmployeeSkill[]
+  teamMemberships TeamMember[]
+  competencies    EmployeeCompetency[]
+  cadenceRules    CadenceRule[]
+  developmentPlans DevelopmentPlan[]
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  @@index([userId])
+  @@index([workAreaId])
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  OFFBOARDING
+  OFFBOARDED
+}
+
+model EmployeeNote {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  content    String
+  type       NoteType @default(GENERAL)
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@index([employeeId])
+}
+
+enum NoteType {
+  GENERAL
+  FEEDBACK
+  GOAL_UPDATE
+  PERFORMANCE
+  PERSONAL
+}
+
+model OneOnOne {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  eventId    String?  @unique
+  event      Event?   @relation(fields: [eventId], references: [id])
+  
+  date       DateTime
+  notes      String?
+  mood       Int?     // 1-5 scale
+  topics     String[]
+  followUps  String[]
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@index([employeeId])
+}
+
+model EmployeeSkill {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skillId    String
+  skill      Skill    @relation(fields: [skillId], references: [id])
+  
+  level      Int      @default(0)
+  
+  @@unique([employeeId, skillId])
+}
+
+// Competencies for radar/spider chart
+model EmployeeCompetency {
+  id         String         @id @default(uuid())
+  employeeId String
+  employee   Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  category   CompetencyCategory
+  name       String
+  rating     Int            @default(0)  // 0-5 scale
+  notes      String?
+  
+  updatedAt  DateTime       @updatedAt
+  
+  @@unique([employeeId, category, name])
+  @@index([employeeId])
+}
+
+enum CompetencyCategory {
+  TECHNICAL
+  SOFT_SKILL
+}
+
+// ============================================
+// Teams
+// ============================================
+model Team {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workAreaId  String?
+  workArea    WorkArea? @relation(fields: [workAreaId], references: [id])
+  
+  name        String
+  description String?
+  color       String   @default("#7BA087")
+  
+  members     TeamMember[]
+  actions     Action[]  @relation("TeamActions")
+  events      Event[]   @relation("TeamEvents")
+  cadenceRules CadenceRule[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([workAreaId])
+}
+
+model TeamMember {
+  id         String   @id @default(uuid())
+  teamId     String
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  role       TeamRole @default(OTHER)
+  
+  createdAt  DateTime @default(now())
+  
+  @@unique([teamId, employeeId])
+  @@index([teamId])
+  @@index([employeeId])
+}
+
+enum TeamRole {
+  TEAM_LEAD
+  FRONTEND
+  BACKEND
+  DESIGNER
+  QA
+  DEVOPS
+  OTHER
+}
+
+// ============================================
+// Events & Meetings
+// ============================================
+model Event {
+  id             String     @id @default(uuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventTypeId    String
+  eventType      EventType  @relation(fields: [eventTypeId], references: [id])
+  workAreaId     String?
+  workArea       WorkArea?  @relation(fields: [workAreaId], references: [id])
+  teamId         String?
+  team           Team?      @relation("TeamEvents", fields: [teamId], references: [id])
+  
+  title          String
+  description    String?
+  rawNotes       String?
+  startTime      DateTime
+  endTime        DateTime
+  outlookEventId String?
+  extractedData  Json?
+  needsAction    Boolean    @default(true)
+  
+  participants   EventParticipant[]
+  actions        Action[]
+  oneOnOne       OneOnOne?
+  
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  
+  @@index([userId])
+  @@index([eventTypeId])
+  @@index([workAreaId])
+  @@index([teamId])
+  @@index([startTime])
+}
+
+model EventType {
+  id              String        @id @default(uuid())
+  name            String        @unique
+  category        EventCategory
+  color           String
+  icon            String
+  defaultTemplate String?
+  
+  events          Event[]
+  
+  createdAt       DateTime      @default(now())
+}
+
+enum EventCategory {
+  ONE_ON_ONE
+  WORKSHOP
+  TEAM_MEETING
+  COMPETENCE_FORUM
+  PLANNING
+  REVIEW
+  OTHER
+}
+
+model EventParticipant {
+  id         String          @id @default(uuid())
+  eventId    String
+  event      Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  role       ParticipantRole @default(REQUIRED)
+  
+  @@unique([eventId, employeeId])
+}
+
+enum ParticipantRole {
+  ORGANIZER
+  REQUIRED
+  OPTIONAL
+}
+
+// ============================================
+// Actions & Tasks
+// ============================================
+model Action {
+  id                   String            @id @default(uuid())
+  userId               String
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId              String?
+  event                Event?            @relation(fields: [eventId], references: [id])
+  employeeId           String?
+  employee             Employee?         @relation("EmployeeActions", fields: [employeeId], references: [id])
+  delegatedToId        String?
+  delegatedTo          Employee?         @relation("DelegatedActions", fields: [delegatedToId], references: [id])
+  responsibilityAreaId String?
+  responsibilityArea   ResponsibilityArea? @relation(fields: [responsibilityAreaId], references: [id])
+  workAreaId           String?
+  workArea             WorkArea?         @relation(fields: [workAreaId], references: [id])
+  teamId               String?
+  team                 Team?             @relation("TeamActions", fields: [teamId], references: [id])
+  
+  // Parent-child hierarchy for grouped actions
+  parentId             String?
+  parent               Action?           @relation("ActionSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks             Action[]          @relation("ActionSubtasks")
+  
+  title                String
+  description          String?
+  status               ActionStatus      @default(PENDING)
+  priority             ActionPriority    @default(MEDIUM)
+  dueDate              DateTime?
+  dueTime              String?           // Time in HH:mm format
+  xpValue              Int               @default(10)
+  completedAt          DateTime?
+  source               ActionSource      @default(MANUAL)
+  
+  attachments          Attachment[]
+  links                ActionLink[]
+  
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([employeeId])
+  @@index([workAreaId])
+  @@index([teamId])
+  @@index([parentId])
+}
+
+enum ActionStatus {
+  PENDING
+  IN_PROGRESS
+  DELEGATED
+  COMPLETED
+  CANCELLED
+}
+
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ActionSource {
+  MANUAL
+  AI_EXTRACTED
+  CALENDAR
+  WORKSHOP
+  ONE_ON_ONE
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  actionId     String
+  action       Action   @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  
+  uploadedAt   DateTime @default(now())
+  
+  @@index([actionId])
+}
+
+model ActionLink {
+  id          String  @id @default(uuid())
+  actionId    String
+  action      Action  @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  url         String
+  title       String?
+  description String?
+  
+  @@index([actionId])
+}
+
+// ============================================
+// Responsibilities
+// ============================================
+model Responsibility {
+  id       String              @id @default(uuid())
+  roleType ResponsibilityRole
+  name     String
+  
+  areas    ResponsibilityArea[]
+  users    UserResponsibility[]
+}
+
+enum ResponsibilityRole {
+  TEAM_LEAD
+  COMPETENCE_LEADER
+  DEPARTMENT_MANAGER
+}
+
+model ResponsibilityArea {
+  id               String         @id @default(uuid())
+  responsibilityId String
+  responsibility   Responsibility @relation(fields: [responsibilityId], references: [id], onDelete: Cascade)
+  
+  category         String
+  name             String
+  description      String?
+  isMandatory      Boolean        @default(false)
+  
+  actions          Action[]
+  
+  @@index([responsibilityId])
+}
+
+model UserResponsibility {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  responsibilityId String
+  responsibility   Responsibility @relation(fields: [responsibilityId], references: [id], onDelete: Cascade)
+  
+  isActive         Boolean        @default(true)
+  
+  @@unique([userId, responsibilityId])
+}
+
+// ============================================
+// Skill Tree & Gamification
+// ============================================
+model SkillTree {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  type        SkillTreeType
+  
+  skills      Skill[]
+  
+  createdAt   DateTime    @default(now())
+}
+
+enum SkillTreeType {
+  LEADERSHIP
+  EMPLOYEE
+}
+
+model Skill {
+  id            String          @id @default(uuid())
+  skillTreeId   String
+  skillTree     SkillTree       @relation(fields: [skillTreeId], references: [id], onDelete: Cascade)
+  
+  name          String
+  description   String?
+  category      String
+  maxLevel      Int             @default(5)
+  xpRequired    Int             @default(100)
+  positionX     Float
+  positionY     Float
+  prerequisites String[]
+  benefits      String[]
+  
+  userSkills    UserSkillNode[]
+  employeeSkills EmployeeSkill[]
+  
+  @@index([skillTreeId])
+}
+
+model UserSkillNode {
+  id       String  @id @default(uuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId  String
+  skill    Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  
+  level    Int     @default(0)
+  unlocked Boolean @default(false)
+  
+  @@unique([userId, skillId])
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  icon        String
+  xpReward    Int
+  condition   Json
+  
+  users       UserAchievement[]
+  
+  createdAt   DateTime @default(now())
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  unlockedAt    DateTime    @default(now())
+  
+  @@unique([userId, achievementId])
+}
+
+model Challenge {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  xpReward    Int
+  startDate   DateTime
+  endDate     DateTime
+  target      Int
+  metric      String
+  
+  users       UserChallenge[]
+  
+  createdAt   DateTime @default(now())
+}
+
+model UserChallenge {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  
+  progress    Int       @default(0)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  
+  @@unique([userId, challengeId])
+}
+
+// ============================================
+// Leadership Playbook
+// ============================================
+model CadenceRule {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type          String    // ONE_ON_ONE, RETRO, SOCIAL, CAREER_CHAT, CUSTOM
+  name          String
+  frequencyDays Int       // e.g., 14 for bi-weekly, 90 for quarterly
+  
+  targetType    String    // EMPLOYEE, TEAM, WORK_AREA, GLOBAL
+  employeeId    String?
+  employee      Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  teamId        String?
+  team          Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  workAreaId    String?
+  workArea      WorkArea? @relation(fields: [workAreaId], references: [id], onDelete: Cascade)
+  
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([userId])
+}
+
+model AIContextRule {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  content   String   // Free-form text - user's leadership philosophy/preferences
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// ============================================
+// Development Plans
+// ============================================
+model DevelopmentPlan {
+  id          String   @id @default(uuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  goals       Json     // Array of goals with milestones and suggested actions
+  summary     String?  // AI-generated summary
+  focusAreas  String[] // Key areas to develop
+  status      String   @default("ACTIVE") // ACTIVE, COMPLETED, ARCHIVED
+  
+  generatedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([employeeId])
+}
+
