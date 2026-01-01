@@ -33,6 +33,7 @@ import { Input, Textarea } from '@/components/ui/Input';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import TeamPulse from '@/components/TeamPulse';
 import PeopleEvents from '@/components/PeopleEvents';
+import LeadershipCadence from '@/components/LeadershipCadence';
 import toast from 'react-hot-toast';
 
 // Icon mapping for work areas
@@ -766,6 +767,9 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Leadership Cadence */}
+          <LeadershipCadence dueItems={dueItems} />
 
           {/* Team Pulse */}
           <TeamPulse />
