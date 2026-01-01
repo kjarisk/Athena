@@ -119,6 +119,10 @@ export const apiHelpers = {
     api.post('/ai/generate-development-plan', { employeeId }),
   getDevelopmentPlan: (employeeId: string) => 
     api.get(`/ai/development-plan/${employeeId}`),
+  getOllamaModels: () => 
+    api.get('/ai/ollama/models'),
+  getOllamaStatus: () => 
+    api.get('/ai/ollama/status'),
 
   // Uploads
   uploadFile: (actionId: string, file: File) => {

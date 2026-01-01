@@ -2,6 +2,13 @@ import OpenAI from 'openai';
 
 type AIProviderType = 'openai' | 'ollama';
 
+interface OllamaModel {
+  name: string;
+  modified_at: string;
+  size: number;
+  digest: string;
+}
+
 interface ExtractionResult {
   summary: string;
   keyPoints: string[];
@@ -39,15 +46,39 @@ export class AIService {
   private provider: AIProviderType;
   private openai: OpenAI | null = null;
   private ollamaBaseUrl: string;
+  private ollamaModel: string;
 
-  constructor(provider: AIProviderType = 'openai') {
+  constructor(provider: AIProviderType = 'openai', ollamaModel: string = 'mistral:latest') {
     this.provider = provider;
     this.ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    this.ollamaModel = ollamaModel;
 
     if (provider === 'openai' && process.env.OPENAI_API_KEY) {
       this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY
       });
+    }
+  }
+
+  // List available Ollama models
+  static async listOllamaModels(baseUrl?: string): Promise<OllamaModel[]> {
+    const url = baseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    
+    try {
+      const response = await fetch(`${url}/api/tags`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.models || [];
+    } catch (error) {
+      console.error('Error fetching Ollama models:', error);
+      throw new Error('Could not connect to Ollama. Make sure Ollama is running.');
     }
   }
 
@@ -84,22 +115,37 @@ Please consider these preferences when providing your response.`;
   }
 
   private async callOllama(systemPrompt: string, userPrompt: string): Promise<string> {
-    const response = await fetch(`${this.ollamaBaseUrl}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama2',
-        prompt: `${systemPrompt}\n\nUser: ${userPrompt}\n\nAssistant:`,
-        stream: false
-      })
-    });
+    try {
+      const response = await fetch(`${this.ollamaBaseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.ollamaModel,
+          prompt: `${systemPrompt}\n\nUser: ${userPrompt}\n\nAssistant:`,
+          stream: false
+        })
+      });
 
-    if (!response.ok) {
-      throw new Error('Ollama API error');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Ollama API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+          model: this.ollamaModel,
+          url: this.ollamaBaseUrl
+        });
+        throw new Error(`Ollama API error (${response.status}): ${errorText || response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.response || '';
+    } catch (error: any) {
+      if (error.message?.includes('fetch failed') || error.code === 'ECONNREFUSED') {
+        throw new Error(`Cannot connect to Ollama at ${this.ollamaBaseUrl}. Is Ollama running? Try: ollama serve`);
+      }
+      throw error;
     }
-
-    const data = await response.json();
-    return data.response || '';
   }
 
   private async call(systemPrompt: string, userPrompt: string): Promise<string> {

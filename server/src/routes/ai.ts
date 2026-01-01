@@ -7,6 +7,52 @@ const router = Router();
 
 router.use(authenticateToken);
 
+// Get available Ollama models
+router.get('/ollama/models', async (req: AuthRequest, res) => {
+  try {
+    const models = await AIService.listOllamaModels();
+    
+    res.json({
+      success: true,
+      data: {
+        models: models.map(m => ({
+          name: m.name,
+          size: m.size,
+          modified: m.modified_at
+        }))
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching Ollama models:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch Ollama models'
+    });
+  }
+});
+
+// Test Ollama connection
+router.get('/ollama/status', async (req: AuthRequest, res) => {
+  try {
+    const models = await AIService.listOllamaModels();
+    res.json({
+      success: true,
+      data: {
+        connected: true,
+        modelCount: models.length
+      }
+    });
+  } catch (error: any) {
+    res.json({
+      success: false,
+      data: {
+        connected: false,
+        error: error.message
+      }
+    });
+  }
+});
+
 // Helper to get user's AI context
 async function getUserAIContext(userId: string): Promise<string | undefined> {
   const aiContext = await prisma.aIContextRule.findUnique({
@@ -33,7 +79,7 @@ router.post('/extract-actions', async (req: AuthRequest, res) => {
     });
 
     const settings = user?.settings as any;
-    const aiService = new AIService(settings?.aiProvider || 'openai');
+    const aiService = new AIService(settings?.aiProvider || 'openai', settings?.ollamaModel || 'mistral:latest');
     const userContext = await getUserAIContext(req.userId!);
 
     const result = await aiService.extractActions(notes, context, userContext);
@@ -173,7 +219,7 @@ router.get('/daily-briefing', async (req: AuthRequest, res) => {
     };
 
     const settings = user.settings as any;
-    const aiService = new AIService(settings?.aiProvider || 'openai');
+    const aiService = new AIService(settings?.aiProvider || 'openai', settings?.ollamaModel || 'mistral:latest');
     const userContext = await getUserAIContext(userId);
 
     const briefing = await aiService.generateDailyBriefing({
@@ -263,7 +309,7 @@ router.get('/suggestions/focus', async (req: AuthRequest, res) => {
     });
 
     const settings = user?.settings as any;
-    const aiService = new AIService(settings?.aiProvider || 'openai');
+    const aiService = new AIService(settings?.aiProvider || 'openai', settings?.ollamaModel || 'mistral:latest');
     const userContext = await getUserAIContext(req.userId!);
 
     const suggestions = await aiService.generateFocusSuggestions({
@@ -303,7 +349,7 @@ router.post('/generate-message', async (req: AuthRequest, res) => {
     });
 
     const settings = user?.settings as any;
-    const aiService = new AIService(settings?.aiProvider || 'openai');
+    const aiService = new AIService(settings?.aiProvider || 'openai', settings?.ollamaModel || 'mistral:latest');
     const userContext = await getUserAIContext(req.userId!);
 
     const message = await aiService.generateMessage(type, context, tone, userContext);
@@ -369,7 +415,7 @@ router.get('/meeting-prep/:eventId', async (req: AuthRequest, res) => {
     });
 
     const settings = user?.settings as any;
-    const aiService = new AIService(settings?.aiProvider || 'openai');
+    const aiService = new AIService(settings?.aiProvider || 'openai', settings?.ollamaModel || 'mistral:latest');
     const userContext = await getUserAIContext(req.userId!);
 
     const prep = await aiService.prepareMeeting(event, userContext);
@@ -405,7 +451,7 @@ router.post('/summarize', async (req: AuthRequest, res) => {
     });
 
     const settings = user?.settings as any;
-    const aiService = new AIService(settings?.aiProvider || 'openai');
+    const aiService = new AIService(settings?.aiProvider || 'openai', settings?.ollamaModel || 'mistral:latest');
 
     const summary = await aiService.summarize(text, format);
 
@@ -468,7 +514,7 @@ router.post('/analyze-one-on-one', async (req: AuthRequest, res) => {
     });
 
     const settings = user?.settings as any;
-    const aiService = new AIService(settings?.aiProvider || 'openai');
+    const aiService = new AIService(settings?.aiProvider || 'openai', settings?.ollamaModel || 'mistral:latest');
 
     const analysis = await aiService.analyzeOneOnOne(notes, employeeContext);
 
@@ -534,7 +580,7 @@ router.post('/analyze-competencies', async (req: AuthRequest, res) => {
     });
 
     const settings = user?.settings as any;
-    const aiService = new AIService(settings?.aiProvider || 'openai');
+    const aiService = new AIService(settings?.aiProvider || 'openai', settings?.ollamaModel || 'mistral:latest');
     const userContext = await getUserAIContext(req.userId!);
 
     const analysis = await aiService.analyzeCompetencies({
@@ -632,7 +678,7 @@ router.post('/generate-development-plan', async (req: AuthRequest, res) => {
     });
 
     const settings = user?.settings as any;
-    const aiService = new AIService(settings?.aiProvider || 'openai');
+    const aiService = new AIService(settings?.aiProvider || 'openai', settings?.ollamaModel || 'mistral:latest');
     const userContext = await getUserAIContext(req.userId!);
 
     const plan = await aiService.generateDevelopmentPlan({

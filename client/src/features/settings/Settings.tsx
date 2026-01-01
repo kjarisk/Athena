@@ -27,6 +27,7 @@ import Modal, { ModalFooter } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
 import { apiHelpers } from '@/lib/api';
 import toast from 'react-hot-toast';
+import OllamaModelSelector from '@/components/OllamaModelSelector';
 
 const settingsSections = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -70,6 +71,7 @@ export default function Settings() {
   const [localSettings, setLocalSettings] = useState(user?.settings || {
     theme: 'light',
     aiProvider: 'openai',
+    ollamaModel: 'mistral:latest',
     notificationsEnabled: true,
     calendarSyncEnabled: false
   });
@@ -482,12 +484,13 @@ export default function Settings() {
                     )}
 
                     {localSettings.aiProvider === 'ollama' && (
-                      <div className="p-4 bg-surface rounded-xl">
-                        <p className="text-sm text-text-secondary">
-                          Ollama runs locally. Make sure Ollama is running on your machine 
-                          (default: localhost:11434).
-                        </p>
-                      </div>
+                      <OllamaModelSelector
+                        selectedModel={localSettings.ollamaModel || 'mistral:latest'}
+                        onModelChange={(model) => setLocalSettings({
+                          ...localSettings,
+                          ollamaModel: model
+                        })}
+                      />
                     )}
                   </div>
                 </CardContent>
