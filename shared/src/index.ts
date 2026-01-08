@@ -20,7 +20,6 @@ export interface UserSettings {
   theme: 'light' | 'dark' | 'system';
   aiProvider: 'openai' | 'ollama';
   notificationsEnabled: boolean;
-  calendarSyncEnabled: boolean;
 }
 
 export interface GamificationStats {

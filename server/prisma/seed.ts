@@ -260,8 +260,7 @@ async function main() {
         settings: {
           theme: 'system',
           aiProvider: 'openai',
-          notificationsEnabled: true,
-          calendarSyncEnabled: true
+          notificationsEnabled: true
         },
         gamificationStats: {
           level: 1,
@@ -314,8 +313,7 @@ async function main() {
         settings: {
           theme: 'light',
           aiProvider: 'openai',
-          notificationsEnabled: true,
-          calendarSyncEnabled: false
+          notificationsEnabled: true
         },
         gamificationStats: {
           level: 1,

@@ -161,7 +161,6 @@ router.post('/', async (req: AuthRequest, res) => {
       rawNotes,
       startTime,
       endTime,
-      outlookEventId,
       participantIds,
       workAreaId,
       needsAction
@@ -183,7 +182,6 @@ router.post('/', async (req: AuthRequest, res) => {
         rawNotes,
         startTime: new Date(startTime),
         endTime: new Date(endTime),
-        outlookEventId,
         workAreaId,
         needsAction: needsAction !== false,
         participants: participantIds?.length ? {

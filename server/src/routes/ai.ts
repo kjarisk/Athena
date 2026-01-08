@@ -559,11 +559,7 @@ router.post('/analyze-competencies', async (req: AuthRequest, res) => {
             topics: true
           }
         },
-        competencies: {
-          include: {
-            competency: true
-          }
-        }
+        competencies: true
       }
     });
 
@@ -588,16 +584,16 @@ router.post('/analyze-competencies', async (req: AuthRequest, res) => {
       role: employee.role,
       strengths: employee.strengths,
       growthAreas: employee.growthAreas,
-      recentOneOnOnes: employee.oneOnOnes.map(o => ({
-        notes: o.notes,
-        mood: o.mood,
+      recentOneOnOnes: employee.oneOnOnes?.map(o => ({
+        notes: o.notes || '',
+        mood: o.mood || 0,
         topics: o.topics
-      })),
-      currentCompetencies: employee.competencies.map(c => ({
-        name: c.competency.name,
+      })) || [],
+      currentCompetencies: employee.competencies?.map(c => ({
+        name: c.name,
         rating: c.rating,
-        category: c.competency.category
-      }))
+        category: c.category
+      })) || []
     }, userContext);
 
     res.json({
@@ -634,18 +630,15 @@ router.post('/generate-development-plan', async (req: AuthRequest, res) => {
       include: {
         oneOnOnes: {
           orderBy: { date: 'desc' },
-          take: 10,
+          take: 5,
           select: {
             notes: true,
+            mood: true,
             topics: true,
             followUps: true
           }
         },
-        competencies: {
-          include: {
-            competency: true
-          }
-        },
+        competencies: true,
         actions: {
           where: {
             status: { notIn: ['COMPLETED', 'CANCELLED'] }
@@ -686,21 +679,21 @@ router.post('/generate-development-plan', async (req: AuthRequest, res) => {
       role: employee.role,
       strengths: employee.strengths,
       growthAreas: employee.growthAreas,
-      competencies: employee.competencies.map(c => ({
-        name: c.competency.name,
+      competencies: employee.competencies?.map(c => ({
+        name: c.name,
         rating: c.rating,
-        category: c.competency.category
-      })),
-      recentOneOnOnes: employee.oneOnOnes.map(o => ({
-        notes: o.notes,
+        category: c.category
+      })) || [],
+      recentOneOnOnes: employee.oneOnOnes?.map(o => ({
+        notes: o.notes || '',
         topics: o.topics,
         followUps: o.followUps
-      })),
-      openActions: employee.actions.map(a => ({
+      })) || [],
+      openActions: employee.actions?.map(a => ({
         title: a.title,
         status: a.status,
         priority: a.priority
-      })),
+      })) || [],
       tenure
     }, userContext);
 

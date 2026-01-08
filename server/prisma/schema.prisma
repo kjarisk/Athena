@@ -19,15 +19,6 @@ model User {
   settings          Json     @default("{}")
   gamificationStats Json     @default("{}")
   
-  // OAuth tokens for calendar sync
-  googleAccessToken  String?
-  googleRefreshToken String?
-  googleTokenExpiry  DateTime?
-  msAccessToken      String?
-  msRefreshToken     String?
-  msTokenExpiry      DateTime?
-  lastCalendarSync   DateTime?
-  
   employees         Employee[]
   events            Event[]
   actions           Action[]
@@ -264,9 +255,6 @@ model Event {
   rawNotes       String?
   startTime      DateTime
   endTime        DateTime
-  outlookEventId String?
-  googleEventId  String?
-  calendarSource String?    // 'google', 'microsoft', or 'manual'
   extractedData  Json?
   needsAction    Boolean    @default(true)
   
@@ -282,8 +270,6 @@ model Event {
   @@index([workAreaId])
   @@index([teamId])
   @@index([startTime])
-  @@unique([googleEventId])
-  @@unique([outlookEventId])
 }
 
 model EventType {

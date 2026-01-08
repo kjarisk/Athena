@@ -183,26 +183,6 @@ export const apiHelpers = {
   saveAIContext: (content: string, isActive?: boolean) => 
     api.put('/playbook/ai-context', { content, isActive }),
   getDailyBriefing: () => 
-    api.get('/ai/daily-briefing'),
-
-  // Calendar
-  getCalendarStatus: () => 
-    api.get('/calendar/status'),
-  disconnectGoogle: () => 
-    api.post('/calendar/disconnect/google'),
-  syncCalendars: () => 
-    api.post('/calendar/sync'),
-  getTimeInsights: () => 
-    api.post('/ai/time-insights').then(res => res.data),
-  
-  // EventKit (Mac Calendar)
-  checkEventkitStatus: () => 
-    api.get('/calendar/eventkit/status').then(res => res.data),
-  getEventkitCalendars: () => 
-    api.get('/calendar/eventkit/calendars').then(res => res.data),
-  syncEventkitCalendars: (data: { calendarIds: string[], daysBack?: number, daysAhead?: number }) => 
-    api.post('/calendar/eventkit/sync', data).then(res => res.data),
-  previewEventkitEvents: (data: { calendarIds: string[], daysBack?: number, daysAhead?: number }) => 
-    api.post('/calendar/eventkit/preview', data).then(res => res.data)
+    api.get('/ai/daily-briefing')
 };
 

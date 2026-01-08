@@ -10,7 +10,6 @@ interface User {
     theme: 'light' | 'dark' | 'system';
     aiProvider: 'openai' | 'ollama';
     notificationsEnabled: boolean;
-    calendarSyncEnabled: boolean;
   };
   gamificationStats: {
     level: number;

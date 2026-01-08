@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { 
@@ -40,7 +40,6 @@ export default function Settings() {
     aiProvider: 'openai' | 'ollama';
     ollamaModel?: string;
     notificationsEnabled: boolean;
-    calendarSyncEnabled: boolean;
   }>(user?.settings ? {
     ...user.settings,
     ollamaModel: (user.settings as any).ollamaModel || 'mistral:latest'
@@ -48,44 +47,8 @@ export default function Settings() {
     theme: 'light',
     aiProvider: 'openai',
     ollamaModel: 'mistral:latest',
-    notificationsEnabled: true,
-    calendarSyncEnabled: false
+    notificationsEnabled: true
   });
-
-  // Fetch calendar status
-  const { data: calendarStatus, refetch: refetchCalendarStatus } = useQuery({
-    queryKey: ['calendarStatus'],
-    queryFn: () => apiHelpers.getCalendarStatus().then(r => r.data),
-    enabled: activeSection === 'integrations'
-  });
-
-  // Handle OAuth callback parameters
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const calendarResult = params.get('calendar');
-    
-    if (calendarResult) {
-      switch (calendarResult) {
-        case 'google-success':
-          toast.success('Google Calendar connected successfully!');
-          refetchCalendarStatus();
-          break;
-        case 'admin-approval-required':
-          toast.error('Admin approval required: Please contact your IT department to approve calendar access.');
-          break;
-        case 'sync-error':
-          toast.error('Calendar connected but initial sync failed. Will retry automatically.');
-          refetchCalendarStatus();
-          break;
-        case 'error':
-          toast.error('Failed to connect calendar. Please try again.');
-          break;
-      }
-      
-      // Clean up URL
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, [refetchCalendarStatus]);
 
   // Fetch employees for playbook target selection
   const { data: employees } = useQuery({
@@ -292,12 +255,7 @@ export default function Settings() {
               </Card>
             )}
 
-            {activeSection === 'integrations' && (
-              <IntegrationSettings 
-                calendarStatus={calendarStatus}
-                refetchCalendarStatus={refetchCalendarStatus}
-              />
-            )}
+            {activeSection === 'integrations' && <IntegrationSettings />}
           </motion.div>
 
           {/* Save Button */}

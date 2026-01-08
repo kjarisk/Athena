@@ -41,8 +41,7 @@ router.post('/register', async (req, res) => {
         settings: {
           theme: 'light',
           aiProvider: 'openai',
-          notificationsEnabled: true,
-          calendarSyncEnabled: false
+          notificationsEnabled: true
         },
         gamificationStats: {
           level: 1,
