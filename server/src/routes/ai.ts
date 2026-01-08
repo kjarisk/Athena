@@ -785,5 +785,104 @@ router.get('/development-plan/:employeeId', async (req: AuthRequest, res) => {
   }
 });
 
+// Analyze time management
+router.post('/time-insights', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+
+    // Get user settings
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { 
+        settings: true,
+        aiContextRules: {
+          select: { content: true }
+        }
+      }
+    });
+
+    const settings = user?.settings as any || {};
+    const aiProvider = settings.aiProvider || 'openai';
+    const ollamaModel = settings.ollamaModel || 'mistral:latest';
+    const userContext = user?.aiContextRules?.[0]?.content || '';
+
+    // Get upcoming events (next 7 days)
+    const now = new Date();
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
+    const events = await prisma.event.findMany({
+      where: {
+        userId,
+        startTime: { gte: now, lte: nextWeek }
+      },
+      include: {
+        workArea: { select: { name: true } }
+      },
+      orderBy: { startTime: 'asc' }
+    });
+
+    // Get open actions
+    const actions = await prisma.action.findMany({
+      where: {
+        userId,
+        status: { not: 'COMPLETED' }
+      },
+      include: {
+        workArea: { select: { name: true } }
+      },
+      orderBy: { dueDate: 'asc' }
+    });
+
+    // Get work areas
+    const workAreas = await prisma.workArea.findMany({
+      where: { userId, isHidden: false },
+      select: { name: true, description: true }
+    });
+
+    // Transform data for AI
+    const eventData = events.map(e => ({
+      title: e.title,
+      startTime: e.startTime,
+      endTime: e.endTime,
+      workAreaId: e.workAreaId,
+      workAreaName: e.workArea?.name
+    }));
+
+    const actionData = actions.map(a => ({
+      title: a.title,
+      priority: a.priority,
+      dueDate: a.dueDate,
+      status: a.status,
+      workAreaName: a.workArea?.name || undefined
+    }));
+
+    // Call AI service
+    const aiService = new AIService(aiProvider as any, ollamaModel);
+    const analysis = await aiService.analyzeTimeManagement(
+      {
+        events: eventData,
+        actions: actionData,
+        workAreas: workAreas.map(w => ({
+          name: w.name,
+          description: w.description || undefined
+        }))
+      },
+      userContext
+    );
+
+    res.json({
+      success: true,
+      data: analysis
+    });
+  } catch (error) {
+    console.error('Time insights error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate time insights'
+    });
+  }
+});
+
 export default router;
 

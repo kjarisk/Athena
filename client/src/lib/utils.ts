@@ -66,7 +66,11 @@ export function getDueDateLabel(date: Date | string): { text: string; variant: '
   return { text: formatDate(date), variant: 'success' };
 }
 
-export function getInitials(name: string): string {
+export function getInitials(name: string | undefined | null): string {
+  if (!name || typeof name !== 'string') {
+    return '?';
+  }
+  
   return name
     .split(' ')
     .map(part => part[0])

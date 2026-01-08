@@ -1,5 +1,8 @@
 // Shared types between client and server
 
+// Re-export constants
+export * from './constants';
+
 // ============================================
 // User Types
 // ============================================

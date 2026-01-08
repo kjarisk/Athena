@@ -24,28 +24,9 @@ import { Input, Textarea, Select } from '@/components/ui/Input';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { formatDate, formatStatus, cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { ROLE_COLORS, ROLE_LABELS, ROLE_ORDER } from '@athena/shared';
 
-const roleColors: Record<string, string> = {
-  TEAM_LEAD: '#D4A574',
-  FRONTEND: '#7BA087',
-  BACKEND: '#8FBC8F',
-  DESIGNER: '#E8B86D',
-  QA: '#CD7F6E',
-  DEVOPS: '#DAA520',
-  OTHER: '#9CA89D'
-};
-
-const roleLabels: Record<string, string> = {
-  TEAM_LEAD: 'Team Lead',
-  FRONTEND: 'Frontend',
-  BACKEND: 'Backend',
-  DESIGNER: 'Designer',
-  QA: 'QA',
-  DEVOPS: 'DevOps',
-  OTHER: 'Other'
-};
-
-const roleOrder = ['TEAM_LEAD', 'FRONTEND', 'BACKEND', 'DESIGNER', 'QA', 'DEVOPS', 'OTHER'];
+// Use shared constants - roleColors, roleLabels, roleOrder now come from @athena/shared
 
 export default function TeamDetail() {
   const { id } = useParams<{ id: string }>();
@@ -231,16 +212,16 @@ export default function TeamDetail() {
 
               {/* Other roles in a row */}
               <div className="flex flex-wrap justify-center gap-4">
-                {roleOrder.filter(role => role !== 'TEAM_LEAD' && membersByRole[role]).map(role => (
+                {ROLE_ORDER.filter(role => role !== 'TEAM_LEAD' && membersByRole[role]).map(role => (
                   <div key={role} className="flex flex-col items-center gap-2">
                     <span 
                       className="text-xs font-medium px-2 py-1 rounded-full"
                       style={{ 
-                        backgroundColor: `${roleColors[role]}20`,
-                        color: roleColors[role]
+                        backgroundColor: `${ROLE_COLORS[role] || ROLE_COLORS.OTHER}20`,
+                        color: ROLE_COLORS[role] || ROLE_COLORS.OTHER
                       }}
                     >
-                      {roleLabels[role]}
+                      {ROLE_LABELS[role] || 'Other'}
                     </span>
                     <div className="flex flex-wrap gap-2 justify-center max-w-xs">
                       {membersByRole[role].map((member: any) => (
@@ -412,18 +393,18 @@ function MemberCard({ member, compact, onRemove, onRoleChange }: any) {
           onClick={() => setShowRoleSelect(!showRoleSelect)}
           className="mt-2 text-xs font-medium px-2 py-0.5 rounded-full transition-all hover:ring-2 hover:ring-offset-1"
           style={{ 
-            backgroundColor: `${roleColors[member.role]}20`,
-            color: roleColors[member.role],
-            ringColor: roleColors[member.role]
+            backgroundColor: `${ROLE_COLORS[member.role] || ROLE_COLORS.OTHER}20`,
+            color: ROLE_COLORS[member.role] || ROLE_COLORS.OTHER,
+            ringColor: ROLE_COLORS[member.role] || ROLE_COLORS.OTHER
           }}
         >
-          {roleLabels[member.role]}
+          {ROLE_LABELS[member.role] || 'Other'}
         </button>
 
         {/* Role dropdown */}
         {showRoleSelect && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-surface py-1 z-10">
-            {Object.entries(roleLabels).map(([value, label]) => (
+            {Object.entries(ROLE_LABELS).map(([value, label]) => (
               <button
                 key={value}
                 onClick={() => {
@@ -558,7 +539,7 @@ function AddMemberModal({ isOpen, onClose, employees, onSubmit, isLoading }: any
           label="Role in Team"
           value={formData.role}
           onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          options={Object.entries(roleLabels).map(([value, label]) => ({
+          options={Object.entries(ROLE_LABELS).map(([value, label]) => ({
             value,
             label
           }))}

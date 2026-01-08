@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -7,27 +7,20 @@ import {
   Bot, 
   Bell, 
   Calendar,
-  Shield,
-  Save,
   BookOpen,
-  Plus,
-  Trash2,
-  Edit2,
-  X,
-  Clock,
-  Users,
-  Target,
-  Briefcase
+  Save
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import Card, { CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { Input, Select, Textarea } from '@/components/ui/Input';
-import Modal, { ModalFooter } from '@/components/ui/Modal';
+import { Input, Select } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { apiHelpers } from '@/lib/api';
 import toast from 'react-hot-toast';
 import OllamaModelSelector from '@/components/OllamaModelSelector';
+
+// Import extracted components
+import { PlaybookSettings, IntegrationSettings } from './components';
 
 const settingsSections = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -38,37 +31,20 @@ const settingsSections = [
   { id: 'integrations', label: 'Integrations', icon: Calendar },
 ];
 
-const cadenceTypes = [
-  { value: 'ONE_ON_ONE', label: '1:1 Meeting', icon: Users },
-  { value: 'RETRO', label: 'Retrospective', icon: Target },
-  { value: 'SOCIAL', label: 'Social Event', icon: Calendar },
-  { value: 'CAREER_CHAT', label: 'Career Conversation', icon: Briefcase },
-  { value: 'CUSTOM', label: 'Custom', icon: Clock },
-];
-
-const frequencyOptions = [
-  { value: '7', label: 'Weekly' },
-  { value: '14', label: 'Bi-weekly' },
-  { value: '30', label: 'Monthly' },
-  { value: '60', label: 'Every 2 months' },
-  { value: '90', label: 'Quarterly' },
-  { value: '180', label: 'Every 6 months' },
-  { value: '365', label: 'Yearly' },
-];
-
-const targetTypes = [
-  { value: 'EMPLOYEE', label: 'Per Employee' },
-  { value: 'TEAM', label: 'Per Team' },
-  { value: 'WORK_AREA', label: 'Per Work Area' },
-  { value: 'GLOBAL', label: 'Global' },
-];
-
 export default function Settings() {
   const { user, updateSettings } = useAuthStore();
-  const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState('profile');
   const [isSaving, setIsSaving] = useState(false);
-  const [localSettings, setLocalSettings] = useState(user?.settings || {
+  const [localSettings, setLocalSettings] = useState<{
+    theme: 'light' | 'dark' | 'system';
+    aiProvider: 'openai' | 'ollama';
+    ollamaModel?: string;
+    notificationsEnabled: boolean;
+    calendarSyncEnabled: boolean;
+  }>(user?.settings ? {
+    ...user.settings,
+    ollamaModel: (user.settings as any).ollamaModel || 'mistral:latest'
+  } : {
     theme: 'light',
     aiProvider: 'openai',
     ollamaModel: 'mistral:latest',
@@ -76,27 +52,42 @@ export default function Settings() {
     calendarSyncEnabled: false
   });
 
-  // Playbook state
-  const [isCadenceModalOpen, setIsCadenceModalOpen] = useState(false);
-  const [editingCadence, setEditingCadence] = useState<any>(null);
-  const [aiContext, setAiContext] = useState('');
-  const [aiContextSaving, setAiContextSaving] = useState(false);
-
-  // Fetch cadence rules
-  const { data: cadenceRules } = useQuery({
-    queryKey: ['cadenceRules'],
-    queryFn: () => apiHelpers.getCadenceRules().then(r => r.data.data),
-    enabled: activeSection === 'playbook'
+  // Fetch calendar status
+  const { data: calendarStatus, refetch: refetchCalendarStatus } = useQuery({
+    queryKey: ['calendarStatus'],
+    queryFn: () => apiHelpers.getCalendarStatus().then(r => r.data),
+    enabled: activeSection === 'integrations'
   });
 
-  // Fetch AI context
-  const { data: aiContextData } = useQuery({
-    queryKey: ['aiContext'],
-    queryFn: () => apiHelpers.getAIContext().then(r => r.data.data),
-    enabled: activeSection === 'playbook'
-  });
+  // Handle OAuth callback parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const calendarResult = params.get('calendar');
+    
+    if (calendarResult) {
+      switch (calendarResult) {
+        case 'google-success':
+          toast.success('Google Calendar connected successfully!');
+          refetchCalendarStatus();
+          break;
+        case 'admin-approval-required':
+          toast.error('Admin approval required: Please contact your IT department to approve calendar access.');
+          break;
+        case 'sync-error':
+          toast.error('Calendar connected but initial sync failed. Will retry automatically.');
+          refetchCalendarStatus();
+          break;
+        case 'error':
+          toast.error('Failed to connect calendar. Please try again.');
+          break;
+      }
+      
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [refetchCalendarStatus]);
 
-  // Fetch employees for target selection
+  // Fetch employees for playbook target selection
   const { data: employees } = useQuery({
     queryKey: ['employees'],
     queryFn: () => apiHelpers.getEmployees().then(r => r.data.data),
@@ -116,59 +107,6 @@ export default function Settings() {
     queryFn: () => apiHelpers.getWorkAreas().then(r => r.data.data),
     enabled: activeSection === 'playbook'
   });
-
-  // Set AI context when data is loaded
-  useEffect(() => {
-    if (aiContextData?.content !== undefined) {
-      setAiContext(aiContextData.content);
-    }
-  }, [aiContextData]);
-
-  // Cadence mutations
-  const createCadenceMutation = useMutation({
-    mutationFn: apiHelpers.createCadenceRule,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cadenceRules'] });
-      setIsCadenceModalOpen(false);
-      setEditingCadence(null);
-      toast.success('Cadence rule created');
-    },
-    onError: () => toast.error('Failed to create cadence rule')
-  });
-
-  const updateCadenceMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => 
-      apiHelpers.updateCadenceRule(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cadenceRules'] });
-      setIsCadenceModalOpen(false);
-      setEditingCadence(null);
-      toast.success('Cadence rule updated');
-    },
-    onError: () => toast.error('Failed to update cadence rule')
-  });
-
-  const deleteCadenceMutation = useMutation({
-    mutationFn: apiHelpers.deleteCadenceRule,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cadenceRules'] });
-      toast.success('Cadence rule deleted');
-    },
-    onError: () => toast.error('Failed to delete cadence rule')
-  });
-
-  const handleSaveAIContext = async () => {
-    setAiContextSaving(true);
-    try {
-      await apiHelpers.saveAIContext(aiContext);
-      queryClient.invalidateQueries({ queryKey: ['aiContext'] });
-      toast.success('AI context saved');
-    } catch (error) {
-      toast.error('Failed to save AI context');
-    } finally {
-      setAiContextSaving(false);
-    }
-  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -248,183 +186,11 @@ export default function Settings() {
             )}
 
             {activeSection === 'playbook' && (
-              <div className="space-y-6">
-                {/* Cadence Rules */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Cadence Rules</CardTitle>
-                      <Button 
-                        size="sm" 
-                        onClick={() => {
-                          setEditingCadence(null);
-                          setIsCadenceModalOpen(true);
-                        }}
-                        leftIcon={<Plus className="w-4 h-4" />}
-                      >
-                        Add Rule
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-text-secondary mb-4">
-                      Define recurring activities like 1:1s, retrospectives, and social events. 
-                      The system will remind you when they're due.
-                    </p>
-                    
-                    {cadenceRules && cadenceRules.length > 0 ? (
-                      <div className="space-y-3">
-                        {cadenceRules.map((rule: any) => {
-                          const typeInfo = cadenceTypes.find(t => t.value === rule.type);
-                          const freqInfo = frequencyOptions.find(f => f.value === String(rule.frequencyDays));
-                          const TypeIcon = typeInfo?.icon || Clock;
-                          
-                          return (
-                            <div 
-                              key={rule.id}
-                              className={cn(
-                                "flex items-center justify-between p-4 rounded-xl border-2",
-                                rule.isActive ? "border-surface bg-surface/50" : "border-surface/50 opacity-50"
-                              )}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                  <TypeIcon className="w-5 h-5 text-primary" />
-                                </div>
-                                <div>
-                                  <h4 className="font-medium text-text-primary">{rule.name}</h4>
-                                  <p className="text-sm text-text-secondary">
-                                    {freqInfo?.label || `Every ${rule.frequencyDays} days`}
-                                    {rule.targetType === 'EMPLOYEE' && rule.employee && ` - ${rule.employee.name}`}
-                                    {rule.targetType === 'TEAM' && rule.team && ` - ${rule.team.name}`}
-                                    {rule.targetType === 'WORK_AREA' && rule.workArea && ` - ${rule.workArea.name}`}
-                                    {rule.targetType === 'GLOBAL' && ' - All'}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setEditingCadence(rule);
-                                    setIsCadenceModalOpen(true);
-                                  }}
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    if (confirm('Delete this cadence rule?')) {
-                                      deleteCadenceMutation.mutate(rule.id);
-                                    }
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4 text-danger" />
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-text-muted">
-                        <Clock className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                        <p>No cadence rules yet.</p>
-                        <p className="text-sm">Add rules to get reminders for recurring activities.</p>
-                      </div>
-                    )}
-
-                    {/* Quick templates */}
-                    <div className="mt-6 pt-6 border-t border-surface">
-                      <h4 className="text-sm font-medium text-text-secondary mb-3">Quick Templates</h4>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            setEditingCadence({
-                              type: 'ONE_ON_ONE',
-                              name: '1:1 with Direct Reports',
-                              frequencyDays: 14,
-                              targetType: 'EMPLOYEE'
-                            });
-                            setIsCadenceModalOpen(true);
-                          }}
-                        >
-                          + Bi-weekly 1:1
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            setEditingCadence({
-                              type: 'RETRO',
-                              name: 'Team Retrospective',
-                              frequencyDays: 90,
-                              targetType: 'TEAM'
-                            });
-                            setIsCadenceModalOpen(true);
-                          }}
-                        >
-                          + Quarterly Retro
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            setEditingCadence({
-                              type: 'CAREER_CHAT',
-                              name: 'Career Conversation',
-                              frequencyDays: 180,
-                              targetType: 'EMPLOYEE'
-                            });
-                            setIsCadenceModalOpen(true);
-                          }}
-                        >
-                          + 6-Month Career Chat
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* AI Context */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>AI Leadership Context</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-text-secondary mb-4">
-                      Describe your leadership philosophy, coaching style, and priorities. 
-                      This context will be used by AI when generating suggestions and insights.
-                    </p>
-                    <Textarea
-                      label="Your Leadership Philosophy"
-                      value={aiContext}
-                      onChange={(e) => setAiContext(e.target.value)}
-                      placeholder="Example:
-- I prioritize psychological safety and open communication
-- I use the GROW model for coaching conversations
-- Focus on team morale and regular check-ins
-- Prefer written follow-ups after every 1:1
-- Value work-life balance in my suggestions"
-                      className="min-h-[200px]"
-                    />
-                    <div className="mt-4 flex justify-end">
-                      <Button
-                        onClick={handleSaveAIContext}
-                        isLoading={aiContextSaving}
-                        leftIcon={<Save className="w-4 h-4" />}
-                      >
-                        Save AI Context
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <PlaybookSettings 
+                employees={employees || []}
+                teams={teams || []}
+                workAreas={workAreas || []}
+              />
             )}
 
             {activeSection === 'appearance' && (
@@ -527,83 +293,10 @@ export default function Settings() {
             )}
 
             {activeSection === 'integrations' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Integrations</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Microsoft Calendar */}
-                    <div className="p-4 border-2 border-surface rounded-xl">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-[#0078D4] flex items-center justify-center">
-                            <Calendar className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-text-primary">Microsoft Outlook</h4>
-                            <p className="text-sm text-text-secondary">
-                              Sync your calendar and get meeting insights
-                            </p>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm" disabled>
-                          Connect
-                        </Button>
-                      </div>
-                      <p className="text-xs text-text-muted mt-3">
-                        Requires Microsoft Graph API configuration. Coming soon.
-                      </p>
-                    </div>
-
-                    {/* Figma */}
-                    <div className="p-4 border-2 border-surface rounded-xl">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-[#F24E1E] flex items-center justify-center">
-                            <span className="text-white font-bold">F</span>
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-text-primary">FigJam</h4>
-                            <p className="text-sm text-text-secondary">
-                              Extract actions from workshop boards
-                            </p>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm" disabled>
-                          Connect
-                        </Button>
-                      </div>
-                      <p className="text-xs text-text-muted mt-3">
-                        Requires Figma API access token. Coming soon.
-                      </p>
-                    </div>
-
-                    {/* Azure DevOps */}
-                    <div className="p-4 border-2 border-surface rounded-xl">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-[#0078D7] flex items-center justify-center">
-                            <Shield className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-text-primary">Azure DevOps</h4>
-                            <p className="text-sm text-text-secondary">
-                              Sync work items and track sprint progress
-                            </p>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm" disabled>
-                          Connect
-                        </Button>
-                      </div>
-                      <p className="text-xs text-text-muted mt-3">
-                        Requires Azure DevOps PAT. Coming soon.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <IntegrationSettings 
+                calendarStatus={calendarStatus}
+                refetchCalendarStatus={refetchCalendarStatus}
+              />
             )}
           </motion.div>
 
@@ -619,195 +312,6 @@ export default function Settings() {
           </div>
         </div>
       </div>
-
-      {/* Cadence Rule Modal */}
-      <CadenceModal
-        isOpen={isCadenceModalOpen}
-        onClose={() => {
-          setIsCadenceModalOpen(false);
-          setEditingCadence(null);
-        }}
-        cadence={editingCadence}
-        onSubmit={(data) => {
-          if (editingCadence?.id) {
-            updateCadenceMutation.mutate({ id: editingCadence.id, data });
-          } else {
-            createCadenceMutation.mutate(data);
-          }
-        }}
-        isLoading={createCadenceMutation.isPending || updateCadenceMutation.isPending}
-        employees={employees || []}
-        teams={teams || []}
-        workAreas={workAreas || []}
-      />
     </div>
   );
 }
-
-function CadenceModal({ 
-  isOpen, 
-  onClose, 
-  cadence, 
-  onSubmit, 
-  isLoading,
-  employees,
-  teams,
-  workAreas
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  cadence: any;
-  onSubmit: (data: any) => void;
-  isLoading: boolean;
-  employees: any[];
-  teams: any[];
-  workAreas: any[];
-}) {
-  const [formData, setFormData] = useState({
-    type: 'ONE_ON_ONE',
-    name: '',
-    frequencyDays: '14',
-    targetType: 'EMPLOYEE',
-    employeeId: '',
-    teamId: '',
-    workAreaId: '',
-    isActive: true
-  });
-
-  useEffect(() => {
-    if (isOpen) {
-      if (cadence) {
-        setFormData({
-          type: cadence.type || 'ONE_ON_ONE',
-          name: cadence.name || '',
-          frequencyDays: String(cadence.frequencyDays || 14),
-          targetType: cadence.targetType || 'EMPLOYEE',
-          employeeId: cadence.employeeId || '',
-          teamId: cadence.teamId || '',
-          workAreaId: cadence.workAreaId || '',
-          isActive: cadence.isActive !== false
-        });
-      } else {
-        setFormData({
-          type: 'ONE_ON_ONE',
-          name: '',
-          frequencyDays: '14',
-          targetType: 'EMPLOYEE',
-          employeeId: '',
-          teamId: '',
-          workAreaId: '',
-          isActive: true
-        });
-      }
-    }
-  }, [isOpen, cadence]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      type: formData.type,
-      name: formData.name,
-      frequencyDays: formData.frequencyDays,
-      targetType: formData.targetType,
-      employeeId: formData.targetType === 'EMPLOYEE' ? formData.employeeId : null,
-      teamId: formData.targetType === 'TEAM' ? formData.teamId : null,
-      workAreaId: formData.targetType === 'WORK_AREA' ? formData.workAreaId : null,
-      isActive: formData.isActive
-    });
-  };
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={cadence?.id ? 'Edit Cadence Rule' : 'Create Cadence Rule'}
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="Name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="e.g., Weekly 1:1 with Sarah"
-          required
-        />
-
-        <Select
-          label="Type"
-          value={formData.type}
-          onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-          options={cadenceTypes.map(t => ({ value: t.value, label: t.label }))}
-        />
-
-        <Select
-          label="Frequency"
-          value={formData.frequencyDays}
-          onChange={(e) => setFormData({ ...formData, frequencyDays: e.target.value })}
-          options={frequencyOptions}
-        />
-
-        <Select
-          label="Target"
-          value={formData.targetType}
-          onChange={(e) => setFormData({ ...formData, targetType: e.target.value })}
-          options={targetTypes}
-        />
-
-        {formData.targetType === 'EMPLOYEE' && (
-          <Select
-            label="Select Employee"
-            value={formData.employeeId}
-            onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-            options={[
-              { value: '', label: 'All Employees' },
-              ...employees.map((emp: any) => ({ value: emp.id, label: emp.name }))
-            ]}
-          />
-        )}
-
-        {formData.targetType === 'TEAM' && (
-          <Select
-            label="Select Team"
-            value={formData.teamId}
-            onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
-            options={[
-              { value: '', label: 'All Teams' },
-              ...teams.map((team: any) => ({ value: team.id, label: team.name }))
-            ]}
-          />
-        )}
-
-        {formData.targetType === 'WORK_AREA' && (
-          <Select
-            label="Select Work Area"
-            value={formData.workAreaId}
-            onChange={(e) => setFormData({ ...formData, workAreaId: e.target.value })}
-            options={[
-              { value: '', label: 'All Work Areas' },
-              ...workAreas.map((area: any) => ({ value: area.id, label: area.name }))
-            ]}
-          />
-        )}
-
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={formData.isActive}
-            onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-            className="w-4 h-4 rounded border-2 border-text-muted text-primary focus:ring-primary"
-          />
-          <span className="text-sm text-text-primary">Active</span>
-        </label>
-
-        <ModalFooter>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading}>
-            {cadence?.id ? 'Save Changes' : 'Create Rule'}
-          </Button>
-        </ModalFooter>
-      </form>
-    </Modal>
-  );
-}
-

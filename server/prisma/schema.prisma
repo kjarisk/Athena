@@ -15,8 +15,18 @@ model User {
   email             String   @unique
   passwordHash      String
   name              String
+  isAdmin           Boolean  @default(false)
   settings          Json     @default("{}")
   gamificationStats Json     @default("{}")
+  
+  // OAuth tokens for calendar sync
+  googleAccessToken  String?
+  googleRefreshToken String?
+  googleTokenExpiry  DateTime?
+  msAccessToken      String?
+  msRefreshToken     String?
+  msTokenExpiry      DateTime?
+  lastCalendarSync   DateTime?
   
   employees         Employee[]
   events            Event[]
@@ -255,6 +265,8 @@ model Event {
   startTime      DateTime
   endTime        DateTime
   outlookEventId String?
+  googleEventId  String?
+  calendarSource String?    // 'google', 'microsoft', or 'manual'
   extractedData  Json?
   needsAction    Boolean    @default(true)
   
@@ -270,6 +282,8 @@ model Event {
   @@index([workAreaId])
   @@index([teamId])
   @@index([startTime])
+  @@unique([googleEventId])
+  @@unique([outlookEventId])
 }
 
 model EventType {

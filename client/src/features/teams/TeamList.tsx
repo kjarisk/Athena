@@ -14,26 +14,9 @@ import EmptyState from '@/components/ui/EmptyState';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { ROLE_COLORS, ROLE_LABELS } from '@athena/shared';
 
-const roleColors: Record<string, string> = {
-  TEAM_LEAD: '#D4A574',
-  FRONTEND: '#7BA087',
-  BACKEND: '#8FBC8F',
-  DESIGNER: '#E8B86D',
-  QA: '#CD7F6E',
-  DEVOPS: '#DAA520',
-  OTHER: '#9CA89D'
-};
-
-const roleLabels: Record<string, string> = {
-  TEAM_LEAD: 'Team Lead',
-  FRONTEND: 'Frontend',
-  BACKEND: 'Backend',
-  DESIGNER: 'Designer',
-  QA: 'QA',
-  DEVOPS: 'DevOps',
-  OTHER: 'Other'
-};
+// Use shared constants - roleColors and roleLabels now come from @athena/shared
 
 export default function TeamList() {
   const [search, setSearch] = useState('');
@@ -152,12 +135,12 @@ export default function TeamList() {
                         key={member.id}
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-medium"
                         style={{ 
-                          backgroundColor: `${roleColors[member.role]}20`,
-                          color: roleColors[member.role]
+                          backgroundColor: `${ROLE_COLORS[member.role] || ROLE_COLORS.OTHER}20`,
+                          color: ROLE_COLORS[member.role] || ROLE_COLORS.OTHER
                         }}
-                        title={`${member.employee.name} - ${roleLabels[member.role]}`}
+                        title={`${member.employee.name} - ${ROLE_LABELS[member.role] || 'Other'}`}
                       >
-                        {roleLabels[member.role]?.slice(0, 2).toUpperCase()}
+                        {(ROLE_LABELS[member.role] || 'OT')?.slice(0, 2).toUpperCase()}
                       </span>
                     ))}
                     {team.members?.length > 6 && (

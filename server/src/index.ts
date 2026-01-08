@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import cookieParser from 'cookie-parser';
 
 // Routes
 import authRoutes from './routes/auth.js';
@@ -15,6 +16,9 @@ import uploadRoutes from './routes/uploads.js';
 import workAreaRoutes from './routes/workAreas.js';
 import teamRoutes from './routes/teams.js';
 import playbookRoutes from './routes/playbook.js';
+import calendarRoutes from './routes/calendar.js';
+import passport from 'passport';
+import cron from 'node-cron';
 
 // Load environment variables
 dotenv.config();
@@ -30,6 +34,8 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(passport.initialize());
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -47,6 +53,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/work-areas', workAreaRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/calendar', calendarRoutes);
 app.use('/api/playbook', playbookRoutes);
 
 // Error handling middleware
@@ -75,6 +82,53 @@ app.listen(PORT, () => {
   ║                                                           ║
   ╚═══════════════════════════════════════════════════════════╝
   `);
+
+  // Schedule calendar sync every 15 minutes
+  cron.schedule('*/15 * * * *', async () => {
+    console.log('Running scheduled calendar sync...');
+    try {
+      const { syncAllCalendars } = await import('./services/calendar/sync.js');
+      
+      const users = await prisma.user.findMany({
+        where: {
+          googleAccessToken: { not: null }
+        },
+        select: { id: true }
+      });
+
+      for (const user of users) {
+        await syncAllCalendars(user.id);
+      }
+
+      console.log(`Calendar sync completed for ${users.length} users`);
+    } catch (error) {
+      console.error('Scheduled calendar sync error:', error);
+    }
+  });
+
+  // Schedule token refresh every hour
+  cron.schedule('0 * * * *', async () => {
+    console.log('Checking for expired tokens...');
+    try {
+      const { syncAllCalendars } = await import('./services/calendar/sync.js');
+      
+      const now = new Date();
+      const users = await prisma.user.findMany({
+        where: {
+          googleTokenExpiry: { lte: now }
+        },
+        select: { id: true }
+      });
+
+      for (const user of users) {
+        await syncAllCalendars(user.id);
+      }
+
+      console.log(`Token refresh completed for ${users.length} users`);
+    } catch (error) {
+      console.error('Token refresh error:', error);
+    }
+  });
 });
 
 export { prisma };

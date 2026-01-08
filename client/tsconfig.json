@@ -17,10 +17,12 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@athena/shared": ["../shared/src/index.ts"],
+      "@athena/shared/*": ["../shared/src/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "../shared/src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
 

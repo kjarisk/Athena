@@ -23,6 +23,7 @@ import { ActionsSection } from './components/ActionsSection';
 import { QuickActionsCard } from './components/QuickActionsCard';
 import { AreaModal } from './components/AreaModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { TimeManagementPanel } from './components/TimeManagementPanel';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
@@ -459,6 +460,9 @@ export default function Dashboard() {
 
         {/* Right column - Proactive Insights */}
         <motion.div variants={itemVariants} className="space-y-6">
+          {/* AI Time Management Insights */}
+          <TimeManagementPanel />
+          
           {/* Quick Actions */}
           <QuickActionsCard />
 

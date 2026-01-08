@@ -243,6 +243,62 @@ async function main() {
   }
   console.log('Created leadership skill tree');
 
+  // Create admin user from environment variables
+  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+    const adminPasswordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
+    
+    const adminUser = await prisma.user.upsert({
+      where: { email: process.env.ADMIN_EMAIL },
+      update: {
+        isAdmin: true
+      },
+      create: {
+        email: process.env.ADMIN_EMAIL,
+        passwordHash: adminPasswordHash,
+        name: process.env.ADMIN_NAME || 'Admin User',
+        isAdmin: true,
+        settings: {
+          theme: 'system',
+          aiProvider: 'openai',
+          notificationsEnabled: true,
+          calendarSyncEnabled: true
+        },
+        gamificationStats: {
+          level: 1,
+          currentXp: 0,
+          totalXp: 0,
+          streak: 0,
+          longestStreak: 0,
+          achievements: [],
+          lastActivityDate: new Date().toISOString()
+        }
+      }
+    });
+    console.log(`Created admin user (${process.env.ADMIN_EMAIL})`);
+
+    // Create default work areas for admin user
+    const adminAreas = [
+      { name: 'Team Lead', color: '#7BA087', icon: 'users', description: 'Day-to-day team management and people care', sortOrder: 0 },
+      { name: 'Competence Lead', color: '#D4A574', icon: 'target', description: 'Skill development and competence strategy', sortOrder: 1 },
+      { name: 'Dept Manager', color: '#E8B86D', icon: 'briefcase', description: 'Department strategy and organizational leadership', sortOrder: 2 }
+    ];
+
+    for (const area of adminAreas) {
+      await prisma.workArea.upsert({
+        where: { 
+          id: `${adminUser.id}-${area.name.replace(/\s+/g, '-').toLowerCase()}`
+        },
+        update: area,
+        create: {
+          id: `${adminUser.id}-${area.name.replace(/\s+/g, '-').toLowerCase()}`,
+          userId: adminUser.id,
+          ...area
+        }
+      });
+    }
+    console.log('Created default work areas for admin user');
+  }
+
   // Create a demo user if in development
   if (process.env.NODE_ENV !== 'production') {
     const passwordHash = await bcrypt.hash('demo123', 12);
@@ -254,6 +310,7 @@ async function main() {
         email: 'demo@example.com',
         passwordHash,
         name: 'Demo User',
+        isAdmin: false,
         settings: {
           theme: 'light',
           aiProvider: 'openai',
