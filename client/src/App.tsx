@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { useTheme } from '@/hooks/useTheme';
 import Layout from '@/components/Layout';
 import Login from '@/features/auth/Login';
 import Register from '@/features/auth/Register';
@@ -30,6 +31,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Apply theme to document root
+  useTheme();
+  
   return (
     <Routes>
       {/* Public routes */}

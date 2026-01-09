@@ -101,6 +101,22 @@ export const apiHelpers = {
     api.get(`/gamification/skill-tree/${type}`),
   unlockSkill: (skillId: string) => 
     api.post('/gamification/skill-tree/unlock', { skillId }),
+  
+  // Goals
+  getGoals: (params?: { quarter?: string; status?: string }) => 
+    api.get('/gamification/goals', { params }),
+  createGoal: (data: { title: string; description?: string; category: string; quarter: string; targetDate?: string; keyResults?: { title: string; targetValue?: number; unit?: string }[] }) => 
+    api.post('/gamification/goals', data),
+  updateGoal: (id: string, data: { title?: string; description?: string; category?: string; quarter?: string; targetDate?: string; status?: string; progress?: number }) => 
+    api.put(`/gamification/goals/${id}`, data),
+  deleteGoal: (id: string) => 
+    api.delete(`/gamification/goals/${id}`),
+  updateKeyResult: (goalId: string, krId: string, data: { title?: string; currentValue?: number; targetValue?: number; unit?: string }) => 
+    api.put(`/gamification/goals/${goalId}/key-results/${krId}`, data),
+  addKeyResult: (goalId: string, data: { title: string; targetValue?: number; unit?: string }) => 
+    api.post(`/gamification/goals/${goalId}/key-results`, data),
+  deleteKeyResult: (goalId: string, krId: string) => 
+    api.delete(`/gamification/goals/${goalId}/key-results/${krId}`),
 
   // AI
   extractActions: (notes: string, context?: string) => 

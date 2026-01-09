@@ -10,7 +10,12 @@ import {
   ChevronRight,
   Download,
   RefreshCw,
-  Lightbulb
+  Lightbulb,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Scale,
+  MessageSquare
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { pdf } from '@react-pdf/renderer';
@@ -18,7 +23,7 @@ import { toast } from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { useWeeklyReport, useRegenerateWeeklyReport } from '@/hooks/useReports';
+import { useWeeklyReport, useRegenerateWeeklyReport, WeekComparison } from '@/hooks/useReports';
 import { useAuthStore } from '@/stores/authStore';
 import { WeeklyReportPDF } from '@/lib/pdf/WeeklyReportPDF';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
@@ -43,6 +48,28 @@ interface AccomplishmentSummary {
   completedAt: string;
 }
 
+interface DecisionSummary {
+  title: string;
+  description?: string;
+  madeAt: string;
+  context?: string;
+}
+
+// Helper for trend indicator
+function TrendIndicator({ change, isPositive = true }: { change: number; isPositive?: boolean }) {
+  const isGood = isPositive ? change >= 0 : change <= 0;
+  const Icon = change > 0 ? TrendingUp : change < 0 ? TrendingDown : Minus;
+  
+  return (
+    <div className={`flex items-center gap-1 text-xs ${
+      change === 0 ? 'text-text-muted' : isGood ? 'text-green-500' : 'text-red-500'
+    }`}>
+      <Icon size={12} />
+      <span>{change > 0 ? '+' : ''}{change.toFixed(1)}</span>
+    </div>
+  );
+}
+
 export default function WeeklyReview() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -50,7 +77,37 @@ export default function WeeklyReview() {
   const [isExporting, setIsExporting] = useState(false);
 
   const { data: report, isLoading } = useWeeklyReport(weekOffset);
+  const { data: previousReport } = useWeeklyReport(weekOffset + 1);
   const regenerateMutation = useRegenerateWeeklyReport();
+
+  // Calculate week-over-week comparison
+  const comparison: WeekComparison | null = report && previousReport ? {
+    meetingHours: {
+      current: report.meetingHours,
+      previous: previousReport.meetingHours,
+      change: report.meetingHours - previousReport.meetingHours
+    },
+    focusHours: {
+      current: report.focusHours,
+      previous: previousReport.focusHours,
+      change: report.focusHours - previousReport.focusHours
+    },
+    actionsCompleted: {
+      current: report.actionsCompleted,
+      previous: previousReport.actionsCompleted,
+      change: report.actionsCompleted - previousReport.actionsCompleted
+    },
+    actionsCreated: {
+      current: report.actionsCreated,
+      previous: previousReport.actionsCreated,
+      change: report.actionsCreated - previousReport.actionsCreated
+    },
+    decisionsCount: {
+      current: report.decisionsCount,
+      previous: previousReport.decisionsCount,
+      change: report.decisionsCount - previousReport.decisionsCount
+    }
+  } : null;
 
   const getWeekLabel = () => {
     if (weekOffset === 0) return 'This Week';
@@ -199,71 +256,82 @@ export default function WeeklyReview() {
         </Card>
       )}
 
-      {/* Key Metrics */}
+      {/* Key Metrics with Week-over-Week Comparison */}
       <div className="grid md:grid-cols-4 gap-4">
         <Card className="p-6">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center justify-between mb-2">
             <div className="p-2 bg-blue-500/10 rounded-lg">
               <Calendar className="w-5 h-5 text-blue-500" />
             </div>
-            <div>
-              <p className="text-sm text-text-muted">Meeting Hours</p>
-              <p className="text-2xl font-bold text-text-primary">
-                {report?.meetingHours.toFixed(1)}h
-              </p>
-            </div>
+            {comparison && (
+              <TrendIndicator change={comparison.meetingHours.change} isPositive={false} />
+            )}
           </div>
+          <p className="text-2xl font-bold text-text-primary">
+            {report?.meetingHours.toFixed(1)}h
+          </p>
+          <p className="text-sm text-text-muted">Meeting Hours</p>
+          {comparison && (
+            <p className="text-xs text-text-muted mt-1">
+              vs {comparison.meetingHours.previous.toFixed(1)}h last week
+            </p>
+          )}
         </Card>
 
         <Card className="p-6">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center justify-between mb-2">
             <div className="p-2 bg-green-500/10 rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-500" />
             </div>
-            <div>
-              <p className="text-sm text-text-muted">Actions Completed</p>
-              <p className="text-2xl font-bold text-text-primary">
-                {report?.actionsCompleted}/{report?.actionsCreated}
-              </p>
-            </div>
+            {comparison && (
+              <TrendIndicator change={comparison.actionsCompleted.change} isPositive={true} />
+            )}
           </div>
-          <div className="text-xs text-text-muted">
+          <p className="text-2xl font-bold text-text-primary">
+            {report?.actionsCompleted}/{report?.actionsCreated}
+          </p>
+          <p className="text-sm text-text-muted">Actions Completed</p>
+          <p className="text-xs text-text-muted mt-1">
             {completionRate}% completion rate
-          </div>
+          </p>
         </Card>
 
         <Card className="p-6">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center justify-between mb-2">
             <div className="p-2 bg-purple-500/10 rounded-lg">
               <Clock className="w-5 h-5 text-purple-500" />
             </div>
-            <div>
-              <p className="text-sm text-text-muted">Focus Time</p>
-              <p className="text-2xl font-bold text-text-primary">
-                {report?.focusHours.toFixed(1)}h
-              </p>
-            </div>
+            {comparison && (
+              <TrendIndicator change={comparison.focusHours.change} isPositive={true} />
+            )}
           </div>
-          <div className="text-xs text-text-muted">
+          <p className="text-2xl font-bold text-text-primary">
+            {report?.focusHours.toFixed(1)}h
+          </p>
+          <p className="text-sm text-text-muted">Focus Time</p>
+          <p className="text-xs text-text-muted mt-1">
             {report ? Math.round((report.focusHours / 40) * 100) : 0}% of work week
-          </div>
+          </p>
         </Card>
 
         <Card className="p-6">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center justify-between mb-2">
             <div className="p-2 bg-amber-500/10 rounded-lg">
-              <Target className="w-5 h-5 text-amber-500" />
+              <Scale className="w-5 h-5 text-amber-500" />
             </div>
-            <div>
-              <p className="text-sm text-text-muted">Decisions Made</p>
-              <p className="text-2xl font-bold text-text-primary">
-                {report?.decisionsCount || 0}
-              </p>
-            </div>
+            {comparison && (
+              <TrendIndicator change={comparison.decisionsCount.change} isPositive={true} />
+            )}
           </div>
-          <div className="text-xs text-text-muted">
-            Logged this week
-          </div>
+          <p className="text-2xl font-bold text-text-primary">
+            {report?.decisionsCount || 0}
+          </p>
+          <p className="text-sm text-text-muted">Decisions Made</p>
+          {comparison && comparison.decisionsCount.previous > 0 && (
+            <p className="text-xs text-text-muted mt-1">
+              vs {comparison.decisionsCount.previous} last week
+            </p>
+          )}
         </Card>
       </div>
 
@@ -339,6 +407,44 @@ export default function WeeklyReview() {
           )}
         </Card>
       </div>
+
+      {/* Decisions Log */}
+      {report?.decisionsLogged && report.decisionsLogged.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-text-primary mb-4">
+            <Scale className="w-5 h-5 inline mr-2 text-amber-500" />
+            Key Decisions This Week
+          </h3>
+          <div className="space-y-3">
+            {report.decisionsLogged.map((decision: DecisionSummary, index: number) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="p-4 bg-surface rounded-lg border-l-4 border-amber-500"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-text-primary">{decision.title}</h4>
+                    {decision.description && (
+                      <p className="text-sm text-text-secondary mt-1">{decision.description}</p>
+                    )}
+                    {decision.context && (
+                      <p className="text-xs text-text-muted mt-2 italic">
+                        Context: {decision.context}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-xs text-text-muted whitespace-nowrap ml-4">
+                    {format(new Date(decision.madeAt), 'MMM d')}
+                  </span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Top Accomplishments */}
       <Card className="p-6">

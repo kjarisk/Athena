@@ -22,6 +22,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { cn, getXpProgress } from '@/lib/utils';
 import Particles from './Particles';
 import QuickAddButton from './QuickAddButton';
+import Breadcrumbs from './Breadcrumbs';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -183,6 +184,9 @@ export default function Layout() {
       {/* Main content */}
       <main className="lg:ml-72 pt-16 lg:pt-0 min-h-screen relative z-10">
         <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+          {/* Breadcrumbs */}
+          <Breadcrumbs className="mb-4" />
+          
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

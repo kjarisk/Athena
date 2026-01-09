@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, Flag, Repeat, Users, Target, User } from 'lucide-react';
+import { Calendar, Clock, Flag, Repeat, Users, Target, User, AlertTriangle, Tag, ShieldAlert } from 'lucide-react';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
 import { Input, Textarea } from './ui/Input';
 import { apiHelpers } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { cn } from '@/lib/utils';
 
 interface ActionModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface ActionModalProps {
     teamId?: string;
     employeeId?: string;
     parentId?: string; // For subtasks
+    type?: 'ACTION' | 'DECISION' | 'INSIGHT';
   };
 }
 
@@ -35,6 +37,11 @@ export default function ActionModal({ isOpen, onClose, action, defaults }: Actio
   const [teamId, setTeamId] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [recurringFrequency, setRecurringFrequency] = useState<string>('none');
+  
+  // New fields
+  const [itemType, setItemType] = useState<'ACTION' | 'DECISION' | 'INSIGHT'>('ACTION');
+  const [isBlocker, setIsBlocker] = useState(false);
+  const [riskLevel, setRiskLevel] = useState<'NONE' | 'LOW' | 'MEDIUM' | 'HIGH'>('NONE');
 
   // Load work areas, teams, employees
   const { data: workAreas } = useQuery({
@@ -71,12 +78,16 @@ export default function ActionModal({ isOpen, onClose, action, defaults }: Actio
       setTeamId(action.teamId || '');
       setEmployeeId(action.assignedToId || '');
       setRecurringFrequency(action.recurringFrequency || 'none');
+      setItemType(action.type || 'ACTION');
+      setIsBlocker(action.isBlocker || false);
+      setRiskLevel(action.riskLevel || 'NONE');
     } else if (defaults) {
       setTitle(defaults.title || '');
       setDescription(defaults.description || '');
       setWorkAreaId(defaults.workAreaId || '');
       setTeamId(defaults.teamId || '');
       setEmployeeId(defaults.employeeId || '');
+      setItemType(defaults.type || 'ACTION');
     }
   }, [action, defaults, isOpen]);
 
@@ -93,6 +104,9 @@ export default function ActionModal({ isOpen, onClose, action, defaults }: Actio
         setTeamId('');
         setEmployeeId('');
         setRecurringFrequency('none');
+        setItemType('ACTION');
+        setIsBlocker(false);
+        setRiskLevel('NONE');
       }, 300);
     }
   }, [isOpen]);
@@ -148,7 +162,10 @@ export default function ActionModal({ isOpen, onClose, action, defaults }: Actio
       assignedToId: employeeId || null,
       recurringFrequency: recurringFrequency !== 'none' ? recurringFrequency : null,
       parentId: defaults?.parentId || null, // For subtasks
-      status: action?.status || 'PENDING'
+      status: action?.status || 'PENDING',
+      type: itemType,
+      isBlocker,
+      riskLevel: riskLevel !== 'NONE' ? riskLevel : null
     };
 
     mutation.mutate(data);
@@ -184,6 +201,86 @@ export default function ActionModal({ isOpen, onClose, action, defaults }: Actio
             placeholder="Add more details..."
             rows={3}
           />
+        </div>
+
+        {/* Item Type */}
+        <div>
+          <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+            <Tag className="w-4 h-4" />
+            Type
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { value: 'ACTION', label: 'Action', desc: 'Something to do' },
+              { value: 'DECISION', label: 'Decision', desc: 'To be decided' },
+              { value: 'INSIGHT', label: 'Insight', desc: 'To remember' }
+            ] as const).map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setItemType(t.value)}
+                className={cn(
+                  'px-3 py-2 rounded-lg border transition-colors text-left',
+                  itemType === t.value
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-surface border-border hover:border-primary'
+                )}
+              >
+                <div className="font-medium text-sm">{t.label}</div>
+                <div className={cn(
+                  'text-xs',
+                  itemType === t.value ? 'text-white/80' : 'text-text-muted'
+                )}>{t.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Blocker & Risk Level */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Blocker
+            </label>
+            <button
+              type="button"
+              onClick={() => setIsBlocker(!isBlocker)}
+              className={cn(
+                'w-full px-4 py-3 rounded-lg border-2 transition-all flex items-center gap-3',
+                isBlocker
+                  ? 'bg-red-50 border-red-300 text-red-700'
+                  : 'bg-surface border-border hover:border-primary'
+              )}
+            >
+              <div className={cn(
+                'w-5 h-5 rounded-md border-2 flex items-center justify-center',
+                isBlocker ? 'bg-red-500 border-red-500' : 'border-text-muted'
+              )}>
+                {isBlocker && <span className="text-white text-xs">✓</span>}
+              </div>
+              <span className="text-sm">
+                {isBlocker ? 'This is a blocker' : 'Mark as blocker'}
+              </span>
+            </button>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4" />
+              Risk Level
+            </label>
+            <select
+              value={riskLevel}
+              onChange={(e) => setRiskLevel(e.target.value as any)}
+              className="w-full px-3 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="NONE">No risk</option>
+              <option value="LOW">Low risk</option>
+              <option value="MEDIUM">Medium risk</option>
+              <option value="HIGH">High risk</option>
+            </select>
+          </div>
         </div>
 
         {/* Priority */}

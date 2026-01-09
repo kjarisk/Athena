@@ -8,7 +8,8 @@ import {
   Bell, 
   Calendar,
   BookOpen,
-  Save
+  Save,
+  ListTodo
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import Card, { CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -26,6 +27,7 @@ const settingsSections = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'playbook', label: 'Leadership Playbook', icon: BookOpen },
   { id: 'appearance', label: 'Appearance', icon: Palette },
+  { id: 'defaults', label: 'Defaults', icon: ListTodo },
   { id: 'ai', label: 'AI Provider', icon: Bot },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'integrations', label: 'Integrations', icon: Calendar },
@@ -39,14 +41,20 @@ export default function Settings() {
     theme: 'light' | 'dark' | 'system';
     aiProvider: 'openai' | 'ollama';
     ollamaModel?: string;
+    aiVerbosity: 'concise' | 'balanced' | 'detailed';
+    defaultActionPriority: 'low' | 'medium' | 'high';
     notificationsEnabled: boolean;
   }>(user?.settings ? {
     ...user.settings,
-    ollamaModel: (user.settings as any).ollamaModel || 'mistral:latest'
+    ollamaModel: (user.settings as any).ollamaModel || 'mistral:latest',
+    aiVerbosity: (user.settings as any).aiVerbosity || 'balanced',
+    defaultActionPriority: (user.settings as any).defaultActionPriority || 'medium'
   } : {
     theme: 'light',
     aiProvider: 'openai',
     ollamaModel: 'mistral:latest',
+    aiVerbosity: 'balanced',
+    defaultActionPriority: 'medium',
     notificationsEnabled: true
   });
 
@@ -162,22 +170,72 @@ export default function Settings() {
                   <CardTitle>Appearance</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4 max-w-md">
+                  <div className="space-y-6 max-w-md">
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-3">
+                        Theme
+                      </label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { value: 'light', label: 'Light', desc: 'Ethereal Forest' },
+                          { value: 'dark', label: 'Dark', desc: 'Hades Inspired' },
+                          { value: 'system', label: 'System', desc: 'Auto-detect' }
+                        ].map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => setLocalSettings({ 
+                              ...localSettings, 
+                              theme: option.value as any 
+                            })}
+                            className={cn(
+                              "p-4 rounded-xl border-2 text-left transition-all",
+                              localSettings.theme === option.value
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-primary/50"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-8 h-8 rounded-lg mb-2",
+                              option.value === 'light' && "bg-gradient-to-br from-amber-100 to-green-100",
+                              option.value === 'dark' && "bg-gradient-to-br from-indigo-900 to-purple-900",
+                              option.value === 'system' && "bg-gradient-to-br from-stone-200 to-stone-400"
+                            )} />
+                            <p className="font-medium text-text-primary">{option.label}</p>
+                            <p className="text-xs text-text-muted">{option.desc}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-text-muted">
+                      The app uses an Ori + Hades inspired aesthetic with warm, ethereal colors.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeSection === 'defaults' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Default Settings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6 max-w-md">
                     <Select
-                      label="Theme"
-                      value={localSettings.theme}
+                      label="Default Action Priority"
+                      value={localSettings.defaultActionPriority}
                       onChange={(e) => setLocalSettings({ 
                         ...localSettings, 
-                        theme: e.target.value as any 
+                        defaultActionPriority: e.target.value as any 
                       })}
                       options={[
-                        { value: 'light', label: 'Light (Ethereal Forest)' },
-                        { value: 'dark', label: 'Dark (Coming soon)' },
-                        { value: 'system', label: 'System (Coming soon)' }
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High' }
                       ]}
                     />
                     <p className="text-sm text-text-muted">
-                      The app uses an Ori + Hades inspired aesthetic with warm, ethereal colors.
+                      New actions will be created with this priority by default.
                     </p>
                   </div>
                 </CardContent>
@@ -190,7 +248,7 @@ export default function Settings() {
                   <CardTitle>AI Provider</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4 max-w-md">
+                  <div className="space-y-6 max-w-md">
                     <Select
                       label="Provider"
                       value={localSettings.aiProvider}
@@ -221,6 +279,23 @@ export default function Settings() {
                         })}
                       />
                     )}
+                    
+                    <Select
+                      label="AI Response Verbosity"
+                      value={localSettings.aiVerbosity}
+                      onChange={(e) => setLocalSettings({ 
+                        ...localSettings, 
+                        aiVerbosity: e.target.value as any 
+                      })}
+                      options={[
+                        { value: 'concise', label: 'Concise - Brief, to the point' },
+                        { value: 'balanced', label: 'Balanced - Standard detail level' },
+                        { value: 'detailed', label: 'Detailed - Comprehensive explanations' }
+                      ]}
+                    />
+                    <p className="text-sm text-text-muted">
+                      Controls how verbose AI-generated content will be (summaries, suggestions, etc.)
+                    </p>
                   </div>
                 </CardContent>
               </Card>

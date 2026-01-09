@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base styles */
+/* Base styles - Light Theme (Ethereal Forest) */
 :root {
   --color-background: #FDFCFA;
   --color-surface: #F7F5F0;
@@ -13,6 +13,43 @@
   --color-accent: #E8B86D;
   --color-text: #2C3E2D;
   --color-text-secondary: #6B7B6C;
+  --color-text-muted: #9CA89D;
+  --color-border: #E8E5DE;
+  --color-border-light: #F0EDE5;
+}
+
+/* Dark Theme (Hades Inspired) */
+[data-theme="dark"] {
+  --color-background: #1A1A2E;
+  --color-surface: #252538;
+  --color-primary: #E8B86D;
+  --color-primary-glow: rgba(232, 184, 109, 0.35);
+  --color-secondary: #8BC99A;
+  --color-secondary-glow: rgba(139, 201, 154, 0.25);
+  --color-accent: #D4A574;
+  --color-text: #E8E5DE;
+  --color-text-secondary: #A9B0A9;
+  --color-text-muted: #6B7B6C;
+  --color-border: #3A3A4E;
+  --color-border-light: #2F2F42;
+}
+
+/* System preference detection */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    --color-background: #1A1A2E;
+    --color-surface: #252538;
+    --color-primary: #E8B86D;
+    --color-primary-glow: rgba(232, 184, 109, 0.35);
+    --color-secondary: #8BC99A;
+    --color-secondary-glow: rgba(139, 201, 154, 0.25);
+    --color-accent: #D4A574;
+    --color-text: #E8E5DE;
+    --color-text-secondary: #A9B0A9;
+    --color-text-muted: #6B7B6C;
+    --color-border: #3A3A4E;
+    --color-border-light: #2F2F42;
+  }
 }
 
 html {

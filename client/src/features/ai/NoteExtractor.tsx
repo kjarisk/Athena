@@ -8,7 +8,11 @@ import {
   Square, 
   Trash2,
   Plus,
-  ArrowRight
+  ArrowRight,
+  Lightbulb,
+  Scale,
+  AlertCircle,
+  Edit2
 } from 'lucide-react';
 import { apiHelpers } from '@/lib/api';
 import Card, { CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -18,11 +22,44 @@ import Badge from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
+interface ExtractedAction {
+  title: string;
+  description?: string;
+  priority?: string;
+  dueDate?: string;
+  type?: 'action' | 'decision' | 'insight';
+  isBlocker?: boolean;
+  assignee?: string;
+}
+
+interface ExtractedDecision {
+  title: string;
+  description?: string;
+  context?: string;
+  participants?: string[];
+}
+
+interface ExtractedInsight {
+  title: string;
+  description?: string;
+  category?: 'observation' | 'risk' | 'opportunity' | 'feedback';
+}
+
+interface ExtractionData {
+  summary?: string;
+  keyPoints?: string[];
+  actions?: ExtractedAction[];
+  decisions?: ExtractedDecision[];
+  insights?: ExtractedInsight[];
+}
+
 export default function NoteExtractor() {
   const [notes, setNotes] = useState('');
   const [context, setContext] = useState('');
-  const [extractedData, setExtractedData] = useState<any>(null);
+  const [extractedData, setExtractedData] = useState<ExtractionData | null>(null);
   const [selectedActions, setSelectedActions] = useState<Set<number>>(new Set());
+  const [selectedDecisions, setSelectedDecisions] = useState<Set<number>>(new Set());
+  const [selectedInsights, setSelectedInsights] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
 
   const { data: employees } = useQuery({
@@ -33,35 +70,37 @@ export default function NoteExtractor() {
   const extractMutation = useMutation({
     mutationFn: () => apiHelpers.extractActions(notes, context),
     onSuccess: (response) => {
-      setExtractedData(response.data.data);
-      // Select all actions by default
-      const indices = new Set(
-        response.data.data.actions?.map((_: any, i: number) => i) || []
-      );
-      setSelectedActions(indices);
-      toast.success('Actions extracted successfully');
+      const data = response.data.data as ExtractionData;
+      setExtractedData(data);
+      // Select all by default
+      setSelectedActions(new Set(data.actions?.map((_: any, i: number) => i) || []));
+      setSelectedDecisions(new Set(data.decisions?.map((_: any, i: number) => i) || []));
+      setSelectedInsights(new Set(data.insights?.map((_: any, i: number) => i) || []));
+      toast.success('Extraction complete');
     },
     onError: () => {
-      toast.error('Failed to extract actions. Check your AI provider settings.');
+      toast.error('Failed to extract. Check your AI provider settings.');
     }
   });
 
   const createActionsMutation = useMutation({
-    mutationFn: async (actions: any[]) => {
-      const promises = actions.map(action => apiHelpers.createAction(action));
+    mutationFn: async (items: any[]) => {
+      const promises = items.map(item => apiHelpers.createAction(item));
       return Promise.all(promises);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['actions'] });
       queryClient.invalidateQueries({ queryKey: ['actionStats'] });
-      toast.success(`Created ${selectedActions.size} action(s)`);
+      toast.success(`Created ${variables.length} item(s)`);
       setExtractedData(null);
       setNotes('');
       setContext('');
       setSelectedActions(new Set());
+      setSelectedDecisions(new Set());
+      setSelectedInsights(new Set());
     },
     onError: () => {
-      toast.error('Failed to create some actions');
+      toast.error('Failed to create some items');
     }
   });
 
@@ -75,21 +114,81 @@ export default function NoteExtractor() {
     setSelectedActions(newSelected);
   };
 
-  const handleCreateActions = () => {
-    if (!extractedData?.actions) return;
-    
-    const actionsToCreate = extractedData.actions
-      .filter((_: any, i: number) => selectedActions.has(i))
-      .map((action: any) => ({
-        title: action.title,
-        description: action.description,
-        priority: action.priority?.toUpperCase() || 'MEDIUM',
-        dueDate: action.dueDate || undefined,
-        source: 'AI_EXTRACTED'
-      }));
-    
-    createActionsMutation.mutate(actionsToCreate);
+  const toggleDecision = (index: number) => {
+    const newSelected = new Set(selectedDecisions);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedDecisions(newSelected);
   };
+
+  const toggleInsight = (index: number) => {
+    const newSelected = new Set(selectedInsights);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedInsights(newSelected);
+  };
+
+  const handleCreateAll = () => {
+    if (!extractedData) return;
+    
+    const itemsToCreate: any[] = [];
+    
+    // Add selected actions
+    extractedData.actions
+      ?.filter((_: any, i: number) => selectedActions.has(i))
+      .forEach((action: ExtractedAction) => {
+        itemsToCreate.push({
+          title: action.title,
+          description: action.description,
+          priority: action.priority?.toUpperCase() || 'MEDIUM',
+          dueDate: action.dueDate || undefined,
+          type: 'ACTION',
+          isBlocker: action.isBlocker || false,
+          source: 'AI_EXTRACTED'
+        });
+      });
+    
+    // Add selected decisions
+    extractedData.decisions
+      ?.filter((_: any, i: number) => selectedDecisions.has(i))
+      .forEach((decision: ExtractedDecision) => {
+        itemsToCreate.push({
+          title: decision.title,
+          description: decision.description || decision.context,
+          type: 'DECISION',
+          priority: 'MEDIUM',
+          source: 'AI_EXTRACTED'
+        });
+      });
+    
+    // Add selected insights
+    extractedData.insights
+      ?.filter((_: any, i: number) => selectedInsights.has(i))
+      .forEach((insight: ExtractedInsight) => {
+        itemsToCreate.push({
+          title: insight.title,
+          description: insight.description,
+          type: 'INSIGHT',
+          priority: insight.category === 'risk' ? 'HIGH' : 'LOW',
+          source: 'AI_EXTRACTED'
+        });
+      });
+    
+    if (itemsToCreate.length === 0) {
+      toast.error('Select at least one item to create');
+      return;
+    }
+    
+    createActionsMutation.mutate(itemsToCreate);
+  };
+
+  const totalSelected = selectedActions.size + selectedDecisions.size + selectedInsights.size;
 
   return (
     <div className="space-y-6">
@@ -170,6 +269,8 @@ Example:
                       onClick={() => {
                         setExtractedData(null);
                         setSelectedActions(new Set());
+                        setSelectedDecisions(new Set());
+                        setSelectedInsights(new Set());
                       }}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -269,6 +370,11 @@ Example:
                                     >
                                       {action.priority || 'medium'}
                                     </Badge>
+                                {action.isBlocker && (
+                                      <Badge size="sm" variant="danger">
+                                        Blocker
+                                      </Badge>
+                                    )}
                                     {action.dueDate && (
                                       <span className="text-xs text-text-muted">
                                         Due: {action.dueDate}
@@ -283,16 +389,159 @@ Example:
                       </div>
                     )}
 
-                    {/* Create Actions Button */}
-                    {extractedData.actions?.length > 0 && (
+                    {/* Decisions */}
+                    {extractedData.decisions && extractedData.decisions.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-medium text-text-secondary flex items-center gap-2">
+                            <Scale className="w-4 h-4 text-blue-500" />
+                            Decisions ({selectedDecisions.size} selected)
+                          </h4>
+                          <button
+                            onClick={() => {
+                              if (selectedDecisions.size === extractedData.decisions!.length) {
+                                setSelectedDecisions(new Set());
+                              } else {
+                                setSelectedDecisions(new Set(
+                                  extractedData.decisions!.map((_: any, i: number) => i)
+                                ));
+                              }
+                            }}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            {selectedDecisions.size === extractedData.decisions.length 
+                              ? 'Deselect all' 
+                              : 'Select all'}
+                          </button>
+                        </div>
+                        <ul className="space-y-2">
+                          {extractedData.decisions.map((decision: ExtractedDecision, i: number) => (
+                            <motion.li
+                              key={i}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: i * 0.05 }}
+                              className={cn(
+                                "p-3 rounded-xl border-2 transition-colors cursor-pointer",
+                                selectedDecisions.has(i)
+                                  ? "border-blue-300 bg-blue-50/50"
+                                  : "border-surface hover:border-blue-200"
+                              )}
+                              onClick={() => toggleDecision(i)}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={cn(
+                                  "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                                  selectedDecisions.has(i)
+                                    ? "border-blue-500 bg-blue-500 text-white"
+                                    : "border-text-muted"
+                                )}>
+                                  {selectedDecisions.has(i) && <CheckSquare className="w-3 h-3" />}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-text-primary">{decision.title}</p>
+                                  {decision.description && (
+                                    <p className="text-sm text-text-secondary mt-0.5">
+                                      {decision.description}
+                                    </p>
+                                  )}
+                                  {decision.participants && decision.participants.length > 0 && (
+                                    <div className="flex items-center gap-1 mt-2 text-xs text-text-muted">
+                                      <span>Participants:</span>
+                                      {decision.participants.join(', ')}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Insights */}
+                    {extractedData.insights && extractedData.insights.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-medium text-text-secondary flex items-center gap-2">
+                            <Lightbulb className="w-4 h-4 text-amber-500" />
+                            Insights ({selectedInsights.size} selected)
+                          </h4>
+                          <button
+                            onClick={() => {
+                              if (selectedInsights.size === extractedData.insights!.length) {
+                                setSelectedInsights(new Set());
+                              } else {
+                                setSelectedInsights(new Set(
+                                  extractedData.insights!.map((_: any, i: number) => i)
+                                ));
+                              }
+                            }}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            {selectedInsights.size === extractedData.insights.length 
+                              ? 'Deselect all' 
+                              : 'Select all'}
+                          </button>
+                        </div>
+                        <ul className="space-y-2">
+                          {extractedData.insights.map((insight: ExtractedInsight, i: number) => (
+                            <motion.li
+                              key={i}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: i * 0.05 }}
+                              className={cn(
+                                "p-3 rounded-xl border-2 transition-colors cursor-pointer",
+                                selectedInsights.has(i)
+                                  ? "border-amber-300 bg-amber-50/50"
+                                  : "border-surface hover:border-amber-200"
+                              )}
+                              onClick={() => toggleInsight(i)}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={cn(
+                                  "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                                  selectedInsights.has(i)
+                                    ? "border-amber-500 bg-amber-500 text-white"
+                                    : "border-text-muted"
+                                )}>
+                                  {selectedInsights.has(i) && <CheckSquare className="w-3 h-3" />}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-text-primary">{insight.title}</p>
+                                  {insight.description && (
+                                    <p className="text-sm text-text-secondary mt-0.5">
+                                      {insight.description}
+                                    </p>
+                                  )}
+                                  {insight.category && (
+                                    <Badge 
+                                      size="sm" 
+                                      variant={insight.category === 'risk' ? 'danger' : 'secondary'}
+                                      className="mt-2"
+                                    >
+                                      {insight.category}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </motion.li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Create All Button */}
+                    {totalSelected > 0 && (
                       <Button
-                        onClick={handleCreateActions}
+                        onClick={handleCreateAll}
                         isLoading={createActionsMutation.isPending}
-                        disabled={selectedActions.size === 0}
+                        disabled={totalSelected === 0}
                         className="w-full"
                         leftIcon={<Plus className="w-5 h-5" />}
                       >
-                        Create {selectedActions.size} Action{selectedActions.size !== 1 ? 's' : ''}
+                        Create {totalSelected} Item{totalSelected !== 1 ? 's' : ''}
                       </Button>
                     )}
                   </div>

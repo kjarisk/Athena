@@ -1,84 +1,200 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { Sparkles, Lock, Check, Info } from 'lucide-react';
-import { apiHelpers } from '@/lib/api';
-import Card, { CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import { LoadingPage } from '@/components/ui/LoadingSpinner';
-import { useAuthStore } from '@/stores/authStore';
-import { cn, getXpProgress } from '@/lib/utils';
-import toast from 'react-hot-toast';
+/**
+ * Leadership Competencies Page
+ * Self-assessment based competency tracking with development suggestions
+ */
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Users, 
+  Target, 
+  MessageSquare, 
+  Lightbulb, 
+  TrendingUp,
+  Sparkles,
+  Star,
+  ChevronRight,
+  Save,
+  RefreshCw
+} from 'lucide-react';
+import api from '@/lib/api';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { cn } from '@/lib/utils';
+import toast from 'react-hot-toast';
+
+// Competency categories and items
+const COMPETENCIES = {
+  'People Leadership': {
+    icon: Users,
+    color: 'text-teamlead bg-teamlead/10',
+    items: [
+      { id: 'coaching', name: 'Coaching & Mentoring', description: 'Developing team members through guidance and feedback' },
+      { id: 'delegation', name: 'Delegation', description: 'Empowering others with appropriate authority and accountability' },
+      { id: 'conflict', name: 'Conflict Resolution', description: 'Navigating disagreements productively' },
+      { id: 'feedback', name: 'Giving Feedback', description: 'Providing constructive, actionable input' },
+      { id: 'empathy', name: 'Empathy', description: 'Understanding and relating to team perspectives' }
+    ]
+  },
+  'Strategic Thinking': {
+    icon: Target,
+    color: 'text-primary bg-primary/10',
+    items: [
+      { id: 'vision', name: 'Vision Setting', description: 'Creating and communicating a clear direction' },
+      { id: 'prioritization', name: 'Prioritization', description: 'Focusing effort on what matters most' },
+      { id: 'decision', name: 'Decision Making', description: 'Making sound choices with incomplete information' },
+      { id: 'systems', name: 'Systems Thinking', description: 'Understanding complex interdependencies' },
+      { id: 'innovation', name: 'Innovation', description: 'Encouraging new ideas and approaches' }
+    ]
+  },
+  'Communication': {
+    icon: MessageSquare,
+    color: 'text-competence bg-competence/10',
+    items: [
+      { id: 'presentation', name: 'Presentation', description: 'Conveying ideas clearly to groups' },
+      { id: 'listening', name: 'Active Listening', description: 'Fully engaging with what others share' },
+      { id: 'writing', name: 'Written Communication', description: 'Clear, concise documentation' },
+      { id: 'stakeholder', name: 'Stakeholder Management', description: 'Building relationships across the org' },
+      { id: 'difficult', name: 'Difficult Conversations', description: 'Handling sensitive topics with care' }
+    ]
+  },
+  'Execution': {
+    icon: TrendingUp,
+    color: 'text-manager bg-manager/10',
+    items: [
+      { id: 'planning', name: 'Planning & Organizing', description: 'Structuring work for success' },
+      { id: 'accountability', name: 'Accountability', description: 'Taking ownership and following through' },
+      { id: 'agility', name: 'Agility', description: 'Adapting quickly to change' },
+      { id: 'results', name: 'Results Orientation', description: 'Focusing on outcomes over activity' },
+      { id: 'continuous', name: 'Continuous Improvement', description: 'Always looking for better ways' }
+    ]
+  }
+};
+
+interface CompetencyRating {
+  competencyId: string;
+  rating: number; // 1-5
+  updatedAt: string;
+}
+
+interface CompetencyData {
+  ratings: CompetencyRating[];
+  lastAssessment: string | null;
+}
+
+// Development tips by competency
+const DEVELOPMENT_TIPS: Record<string, string[]> = {
+  coaching: ['Ask more questions, give fewer answers', 'Schedule dedicated development time with each report', 'Use the GROW model for coaching conversations'],
+  delegation: ['Match tasks to development goals', 'Define success criteria clearly', 'Follow up without micromanaging'],
+  conflict: ['Address issues early before they escalate', 'Focus on interests, not positions', 'Seek win-win solutions'],
+  feedback: ['Use the SBI model (Situation, Behavior, Impact)', 'Give feedback close to the event', 'Balance positive and constructive'],
+  empathy: ['Practice perspective-taking before meetings', 'Ask about challenges, not just progress', 'Validate emotions before problem-solving'],
+  vision: ['Connect daily work to bigger purpose', 'Revisit and communicate vision regularly', 'Co-create goals with your team'],
+  prioritization: ['Use frameworks like Eisenhower Matrix', 'Learn to say no gracefully', 'Review priorities weekly'],
+  decision: ['Document your decision-making rationale', 'Set decision deadlines to avoid paralysis', 'Include diverse perspectives'],
+  systems: ['Map dependencies before major changes', 'Consider second-order effects', 'Build feedback loops'],
+  innovation: ['Create safe space for experimentation', 'Celebrate learning from failure', 'Allocate time for exploration'],
+  presentation: ['Start with the key message', 'Use stories and examples', 'Practice out loud'],
+  listening: ['Put away devices during conversations', 'Summarize to confirm understanding', 'Ask follow-up questions'],
+  writing: ['Use clear structure: context, content, action', 'Write for busy readers—lead with conclusions', 'Edit ruthlessly'],
+  stakeholder: ['Map stakeholder interests early', 'Communicate proactively', 'Build relationships before you need them'],
+  difficult: ['Prepare but don\'t over-script', 'Stay curious, not defensive', 'Focus on observable behaviors'],
+  planning: ['Break large goals into milestones', 'Build in buffer time', 'Review and adjust plans regularly'],
+  accountability: ['Make commitments visible', 'Own mistakes publicly', 'Follow through consistently'],
+  agility: ['Build flexibility into plans', 'Embrace experimentation', 'Learn from rapid iterations'],
+  results: ['Define clear success metrics', 'Remove busywork ruthlessly', 'Celebrate wins along the way'],
+  continuous: ['Schedule retrospectives regularly', 'Seek feedback proactively', 'Read and learn continuously']
+};
 
 export default function SkillTree() {
-  const { user } = useAuthStore();
   const queryClient = useQueryClient();
-  const [selectedSkill, setSelectedSkill] = useState<any>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [pendingRatings, setPendingRatings] = useState<Record<string, number>>({});
+  const [hasChanges, setHasChanges] = useState(false);
 
-  const stats = user?.gamificationStats;
-  const xpProgress = stats ? getXpProgress(stats.totalXp, stats.level) : null;
-
-  const { data: skillTree, isLoading } = useQuery({
-    queryKey: ['skillTree', 'leadership'],
-    queryFn: () => apiHelpers.getSkillTree('leadership').then(r => r.data.data)
-  });
-
-  const unlockMutation = useMutation({
-    mutationFn: (skillId: string) => apiHelpers.unlockSkill(skillId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['skillTree'] });
-      queryClient.invalidateQueries({ queryKey: ['auth'] });
-      setSelectedSkill(null);
-      toast.success('Skill unlocked!');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Failed to unlock skill');
+  // Fetch current ratings
+  const { data: competencyData, isLoading } = useQuery<CompetencyData>({
+    queryKey: ['competencies'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/gamification/competencies');
+        return data.data;
+      } catch {
+        // Return empty data if endpoint doesn't exist yet
+        return { ratings: [], lastAssessment: null };
+      }
     }
   });
+
+  // Save ratings mutation
+  const saveMutation = useMutation({
+    mutationFn: async (ratings: Record<string, number>) => {
+      await api.post('/gamification/competencies', { ratings });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['competencies'] });
+      setPendingRatings({});
+      setHasChanges(false);
+      toast.success('Assessment saved!');
+    },
+    onError: () => {
+      toast.error('Failed to save assessment');
+    }
+  });
+
+  const handleRatingChange = (competencyId: string, rating: number) => {
+    setPendingRatings(prev => ({ ...prev, [competencyId]: rating }));
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    // Merge existing ratings with pending
+    const currentRatings = competencyData?.ratings.reduce((acc, r) => {
+      acc[r.competencyId] = r.rating;
+      return acc;
+    }, {} as Record<string, number>) || {};
+    
+    const mergedRatings = { ...currentRatings, ...pendingRatings };
+    saveMutation.mutate(mergedRatings);
+  };
+
+  const getRating = (competencyId: string): number => {
+    if (pendingRatings[competencyId] !== undefined) {
+      return pendingRatings[competencyId];
+    }
+    const existing = competencyData?.ratings.find(r => r.competencyId === competencyId);
+    return existing?.rating || 0;
+  };
+
+  // Calculate category averages
+  const getCategoryAverage = (items: { id: string }[]): number => {
+    const ratings = items.map(item => getRating(item.id)).filter(r => r > 0);
+    if (ratings.length === 0) return 0;
+    return ratings.reduce((a, b) => a + b, 0) / ratings.length;
+  };
+
+  // Calculate overall score
+  const getOverallScore = (): number => {
+    const allItems = Object.values(COMPETENCIES).flatMap(cat => cat.items);
+    const ratings = allItems.map(item => getRating(item.id)).filter(r => r > 0);
+    if (ratings.length === 0) return 0;
+    return ratings.reduce((a, b) => a + b, 0) / ratings.length;
+  };
 
   if (isLoading) {
-    return <LoadingPage />;
+    return (
+      <div className="flex items-center justify-center h-96">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
-  const skills = skillTree?.skills || [];
-  
-  // Group skills by category
-  const skillsByCategory = skills.reduce((acc: any, skill: any) => {
-    if (!acc[skill.category]) acc[skill.category] = [];
-    acc[skill.category].push(skill);
-    return acc;
-  }, {});
-
-  // Calculate SVG viewBox based on skill positions
-  const minX = Math.min(...skills.map((s: any) => s.positionX)) - 1;
-  const maxX = Math.max(...skills.map((s: any) => s.positionX)) + 1;
-  const minY = Math.min(...skills.map((s: any) => s.positionY)) - 1;
-  const maxY = Math.max(...skills.map((s: any) => s.positionY)) + 1;
-
-  const scale = 80;
-  const offsetX = -minX * scale + 60;
-  const offsetY = -minY * scale + 60;
-
-  const canUnlock = (skill: any) => {
-    if (skill.unlocked) return false;
-    if (!stats) return false;
-    
-    // Check XP
-    if (stats.currentXp < skill.xpRequired) return false;
-    
-    // Check prerequisites
-    if (skill.prerequisites?.length > 0) {
-      const unlockedSkillNames = skills
-        .filter((s: any) => s.unlocked)
-        .map((s: any) => s.name);
-      
-      return skill.prerequisites.every((prereq: string) => 
-        unlockedSkillNames.includes(prereq)
-      );
-    }
-    
-    return true;
-  };
+  const overallScore = getOverallScore();
+  const completedCount = Object.values(COMPETENCIES)
+    .flatMap(cat => cat.items)
+    .filter(item => getRating(item.id) > 0).length;
+  const totalCount = Object.values(COMPETENCIES).flatMap(cat => cat.items).length;
 
   return (
     <div className="space-y-6">
@@ -86,271 +202,233 @@ export default function SkillTree() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-semibold text-text-primary">
-            Leadership Constellation
+            Leadership Competencies
           </h1>
           <p className="text-text-secondary mt-1">
-            Unlock skills to become a better leader
+            Assess your skills and get personalized development suggestions
           </p>
         </div>
         
-        {/* XP Display */}
-        {stats && xpProgress && (
-          <Card padding="sm" className="bg-gradient-ethereal">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-warm flex items-center justify-center text-white font-display text-xl shadow-glow">
-                {stats.level}
-              </div>
-              <div>
-                <p className="text-sm text-text-secondary">Available XP</p>
-                <p className="font-display text-xl font-semibold text-primary">
-                  {stats.currentXp} XP
-                </p>
-              </div>
-            </div>
-          </Card>
+        {hasChanges && (
+          <Button
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+            className="gap-2"
+          >
+            <Save size={16} />
+            {saveMutation.isPending ? 'Saving...' : 'Save Assessment'}
+          </Button>
         )}
       </div>
 
-      {/* Skill Tree Visualization */}
-      <Card className="overflow-hidden">
-        <CardContent padding="none" className="p-0">
-          <div className="relative bg-gradient-ethereal min-h-[500px] overflow-auto">
-            {/* Star background effect */}
-            <div className="absolute inset-0 opacity-30">
-              {Array.from({ length: 50 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute w-1 h-1 bg-primary rounded-full animate-pulse"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animationDelay: `${Math.random() * 3}s`
-                  }}
-                />
-              ))}
+      {/* Overall Score */}
+      <Card className="p-6 bg-gradient-ethereal">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-white/50 flex items-center justify-center">
+              <Sparkles className="w-8 h-8 text-primary" />
             </div>
-
-            {/* SVG for connections */}
-            <svg 
-              className="absolute inset-0 w-full h-full"
-              viewBox={`0 0 ${(maxX - minX + 2) * scale + 120} ${(maxY - minY + 2) * scale + 120}`}
-              preserveAspectRatio="xMidYMid meet"
-            >
-              {/* Draw connections */}
-              {skills.map((skill: any) => 
-                skill.prerequisites?.map((prereqName: string) => {
-                  const prereq = skills.find((s: any) => s.name === prereqName);
-                  if (!prereq) return null;
-                  
-                  const x1 = prereq.positionX * scale + offsetX;
-                  const y1 = prereq.positionY * scale + offsetY;
-                  const x2 = skill.positionX * scale + offsetX;
-                  const y2 = skill.positionY * scale + offsetY;
-                  
-                  const isActive = prereq.unlocked;
-                  
-                  return (
-                    <line
-                      key={`${prereq.name}-${skill.name}`}
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      className={cn(
-                        "skill-connection",
-                        isActive && "skill-connection-active"
-                      )}
-                    />
-                  );
-                })
-              )}
-            </svg>
-
-            {/* Skill Nodes */}
-            <div className="relative" style={{ 
-              width: (maxX - minX + 2) * scale + 120,
-              height: (maxY - minY + 2) * scale + 120 
-            }}>
-              {skills.map((skill: any) => {
-                const x = skill.positionX * scale + offsetX;
-                const y = skill.positionY * scale + offsetY;
-                const isUnlocked = skill.unlocked;
-                const isAvailable = canUnlock(skill);
-                
-                return (
-                  <motion.button
-                    key={skill.id}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.1 }}
-                    onClick={() => setSelectedSkill(skill)}
-                    className={cn(
-                      "skill-node absolute -translate-x-1/2 -translate-y-1/2",
-                      isUnlocked && "skill-node-unlocked",
-                      !isUnlocked && isAvailable && "skill-node-available",
-                      !isUnlocked && !isAvailable && "skill-node-locked"
-                    )}
-                    style={{ left: x, top: y }}
-                    title={skill.name}
-                  >
-                    {isUnlocked ? (
-                      <Check className="w-6 h-6" />
-                    ) : !isAvailable ? (
-                      <Lock className="w-5 h-5" />
-                    ) : (
-                      <Sparkles className="w-5 h-5" />
-                    )}
-                    
-                    {/* Level indicator */}
-                    {skill.currentLevel > 0 && (
-                      <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full text-xs font-bold text-primary flex items-center justify-center shadow-sm">
-                        {skill.currentLevel}
-                      </span>
-                    )}
-                  </motion.button>
-                );
-              })}
+            <div>
+              <h2 className="text-2xl font-bold text-text-primary">
+                {overallScore > 0 ? overallScore.toFixed(1) : '—'} / 5.0
+              </h2>
+              <p className="text-text-secondary">Overall Leadership Score</p>
             </div>
           </div>
-        </CardContent>
+          <div className="text-right">
+            <p className="text-lg font-semibold text-text-primary">
+              {completedCount} / {totalCount}
+            </p>
+            <p className="text-sm text-text-muted">Competencies rated</p>
+          </div>
+        </div>
+        
+        {/* Progress bar */}
+        <div className="mt-4">
+          <div className="h-2 bg-white/30 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${(completedCount / totalCount) * 100}%` }}
+              transition={{ duration: 0.5 }}
+              className="h-full bg-primary rounded-full"
+            />
+          </div>
+        </div>
       </Card>
 
-      {/* Skill Categories Legend */}
-      <div className="grid md:grid-cols-4 gap-4">
-        {Object.entries(skillsByCategory).map(([category, categorySkills]: [string, any]) => {
-          const unlockedCount = categorySkills.filter((s: any) => s.unlocked).length;
+      {/* Category Cards */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {Object.entries(COMPETENCIES).map(([category, { icon: Icon, color, items }]) => {
+          const avg = getCategoryAverage(items);
+          const isExpanded = expandedCategory === category;
           
           return (
-            <Card key={category} padding="sm">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-text-primary">{category}</h3>
-                <span className="text-sm text-text-muted">
-                  {unlockedCount}/{categorySkills.length}
-                </span>
-              </div>
-              <ul className="mt-2 space-y-1">
-                {categorySkills.map((skill: any) => (
-                  <li 
-                    key={skill.id}
+            <Card key={category} className="overflow-hidden">
+              {/* Category Header */}
+              <button
+                className="w-full p-4 flex items-center justify-between hover:bg-surface/50 transition-colors"
+                onClick={() => setExpandedCategory(isExpanded ? null : category)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg", color)}>
+                    <Icon size={20} />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-semibold text-text-primary">{category}</h3>
+                    <p className="text-sm text-text-muted">
+                      {avg > 0 ? `${avg.toFixed(1)} avg` : 'Not yet rated'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* Mini rating display */}
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <Star
+                        key={star}
+                        size={14}
+                        className={cn(
+                          star <= Math.round(avg) 
+                            ? "text-amber-400 fill-amber-400" 
+                            : "text-gray-300"
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <ChevronRight 
                     className={cn(
-                      "text-sm flex items-center gap-2",
-                      skill.unlocked ? "text-success" : "text-text-muted"
-                    )}
+                      "w-5 h-5 text-text-muted transition-transform",
+                      isExpanded && "rotate-90"
+                    )} 
+                  />
+                </div>
+              </button>
+              
+              {/* Expanded Content */}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    {skill.unlocked ? (
-                      <Check className="w-3 h-3" />
-                    ) : (
-                      <Lock className="w-3 h-3" />
-                    )}
-                    {skill.name}
-                  </li>
-                ))}
-              </ul>
+                    <div className="px-4 pb-4 space-y-4 border-t border-surface-dark pt-4">
+                      {items.map(item => {
+                        const rating = getRating(item.id);
+                        const tips = DEVELOPMENT_TIPS[item.id] || [];
+                        
+                        return (
+                          <div key={item.id} className="space-y-2">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-text-primary text-sm">
+                                  {item.name}
+                                </h4>
+                                <p className="text-xs text-text-muted">{item.description}</p>
+                              </div>
+                              
+                              {/* Star Rating */}
+                              <div className="flex gap-1 ml-4">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                  <button
+                                    key={star}
+                                    onClick={() => handleRatingChange(item.id, star)}
+                                    className="p-1 hover:scale-110 transition-transform"
+                                  >
+                                    <Star
+                                      size={18}
+                                      className={cn(
+                                        "transition-colors",
+                                        star <= rating 
+                                          ? "text-amber-400 fill-amber-400" 
+                                          : "text-gray-300 hover:text-amber-200"
+                                      )}
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            {/* Development tip for low ratings */}
+                            {rating > 0 && rating <= 3 && tips.length > 0 && (
+                              <div className="p-2 bg-primary/5 rounded-lg">
+                                <p className="text-xs text-text-secondary">
+                                  <Lightbulb size={12} className="inline mr-1 text-primary" />
+                                  <strong>Tip:</strong> {tips[0]}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </Card>
           );
         })}
       </div>
 
-      {/* Skill Detail Modal */}
-      {selectedSkill && (
-        <SkillDetailModal
-          skill={selectedSkill}
-          canUnlock={canUnlock(selectedSkill)}
-          currentXp={stats?.currentXp || 0}
-          onClose={() => setSelectedSkill(null)}
-          onUnlock={() => unlockMutation.mutate(selectedSkill.id)}
-          isUnlocking={unlockMutation.isPending}
-        />
-      )}
-    </div>
-  );
-}
-
-function SkillDetailModal({ skill, canUnlock, currentXp, onClose, onUnlock, isUnlocking }: any) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="relative bg-white rounded-2xl shadow-xl p-6 max-w-md w-full"
-      >
-        <div className="text-center mb-4">
-          <div className={cn(
-            "w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-3",
-            skill.unlocked ? "bg-gradient-warm shadow-glow" : "bg-surface"
-          )}>
-            {skill.unlocked ? (
-              <Check className="w-8 h-8 text-white" />
-            ) : (
-              <Sparkles className={cn(
-                "w-8 h-8",
-                canUnlock ? "text-primary" : "text-text-muted"
-              )} />
-            )}
-          </div>
-          <h2 className="font-display text-xl font-semibold">{skill.name}</h2>
-          <p className="text-sm text-text-secondary">{skill.category}</p>
-        </div>
-
-        {skill.description && (
-          <p className="text-text-secondary text-center mb-4">{skill.description}</p>
-        )}
-
-        <div className="space-y-3 mb-6">
-          <div className="flex justify-between text-sm">
-            <span className="text-text-secondary">Level</span>
-            <span className="font-medium">{skill.currentLevel || 0} / {skill.maxLevel}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-text-secondary">XP Required</span>
-            <span className={cn(
-              "font-medium",
-              currentXp >= skill.xpRequired ? "text-success" : "text-danger"
-            )}>
-              {skill.xpRequired} XP
-            </span>
-          </div>
-          {skill.prerequisites?.length > 0 && (
-            <div className="text-sm">
-              <span className="text-text-secondary">Prerequisites: </span>
-              <span className="font-medium">{skill.prerequisites.join(', ')}</span>
+      {/* Development Suggestions */}
+      {overallScore > 0 && (
+        <Card className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-primary/10">
+              <Lightbulb className="w-6 h-6 text-primary" />
             </div>
-          )}
-        </div>
-
-        {skill.benefits?.length > 0 && (
-          <div className="mb-6">
-            <h4 className="text-sm font-medium text-text-secondary mb-2">Benefits</h4>
-            <ul className="space-y-1">
-              {skill.benefits.map((benefit: string, i: number) => (
-                <li key={i} className="text-sm flex items-center gap-2">
-                  <Check className="w-4 h-4 text-success" />
-                  {benefit}
-                </li>
-              ))}
-            </ul>
+            <div>
+              <h3 className="font-semibold text-text-primary text-lg">
+                Development Focus Areas
+              </h3>
+              <p className="text-text-secondary mt-1 mb-4">
+                Based on your self-assessment, consider focusing on these areas:
+              </p>
+              
+              <div className="space-y-3">
+                {Object.values(COMPETENCIES)
+                  .flatMap(cat => cat.items)
+                  .filter(item => {
+                    const r = getRating(item.id);
+                    return r > 0 && r <= 3;
+                  })
+                  .slice(0, 3)
+                  .map(item => {
+                    const tips = DEVELOPMENT_TIPS[item.id] || [];
+                    return (
+                      <div key={item.id} className="p-3 bg-surface rounded-lg">
+                        <h4 className="font-medium text-text-primary">{item.name}</h4>
+                        {tips.length > 0 && (
+                          <ul className="mt-2 space-y-1">
+                            {tips.slice(0, 2).map((tip, idx) => (
+                              <li key={idx} className="text-sm text-text-secondary flex items-start gap-2">
+                                <span className="text-primary">•</span>
+                                {tip}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })}
+                
+                {Object.values(COMPETENCIES)
+                  .flatMap(cat => cat.items)
+                  .filter(item => {
+                    const r = getRating(item.id);
+                    return r > 0 && r <= 3;
+                  }).length === 0 && (
+                  <p className="text-text-muted italic">
+                    Great work! All your rated competencies are at level 4 or above. 
+                    Keep growing and helping others develop!
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-
-        <div className="flex gap-3">
-          <Button variant="ghost" className="flex-1" onClick={onClose}>
-            Close
-          </Button>
-          {!skill.unlocked && (
-            <Button 
-              className="flex-1" 
-              disabled={!canUnlock}
-              onClick={onUnlock}
-              isLoading={isUnlocking}
-            >
-              {canUnlock ? `Unlock (${skill.xpRequired} XP)` : 'Locked'}
-            </Button>
-          )}
-        </div>
-      </motion.div>
+        </Card>
+      )}
     </div>
   );
 }

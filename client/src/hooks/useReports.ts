@@ -22,11 +22,22 @@ export interface WeeklyReport {
   breakdownByArea: Array<{ areaId: string; areaName: string; hours: number; percentage: number }>;
   breakdownByTeam: Array<{ teamId: string; teamName: string; hours: number; percentage: number }>;
   topAccomplishments: Array<{ title: string; category?: string; completedAt: string }>;
+  decisionsLogged?: Array<{ title: string; description?: string; madeAt: string; context?: string }>;
   summary?: string;
   highlights?: string[];
+  challenges?: string[];
   recommendations?: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+// Comparison data for week-over-week trends
+export interface WeekComparison {
+  meetingHours: { current: number; previous: number; change: number };
+  focusHours: { current: number; previous: number; change: number };
+  actionsCompleted: { current: number; previous: number; change: number };
+  actionsCreated: { current: number; previous: number; change: number };
+  decisionsCount: { current: number; previous: number; change: number };
 }
 
 export interface EmployeeReport {

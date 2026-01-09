@@ -32,6 +32,7 @@ model User {
   aiContextRules    AIContextRule[]
   meetingTemplates  MeetingTemplate[]
   weeklyReports     WeeklyReport[]
+  goals             Goal[]
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -584,6 +585,48 @@ model UserChallenge {
   completedAt DateTime?
   
   @@unique([userId, challengeId])
+}
+
+// ============================================
+// Personal Goals / OKRs
+// ============================================
+model Goal {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  category    String      // LEADERSHIP, TEAM, TECHNICAL, PERSONAL
+  quarter     String      // e.g., "Q1 2025"
+  targetDate  DateTime?
+  
+  status      String      @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, ABANDONED
+  progress    Int         @default(0)  // 0-100
+  
+  keyResults  KeyResult[]
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@index([userId])
+  @@index([userId, quarter])
+}
+
+model KeyResult {
+  id          String   @id @default(uuid())
+  goalId      String
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  
+  title       String
+  targetValue Int      @default(100)
+  currentValue Int     @default(0)
+  unit        String?  // e.g., "meetings", "%", "reviews"
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([goalId])
 }
 
 // ============================================

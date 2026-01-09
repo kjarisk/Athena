@@ -294,5 +294,378 @@ router.get('/leaderboard', async (req: AuthRequest, res) => {
   }
 });
 
+// Get user's competency self-assessment ratings
+router.get('/competencies', async (req: AuthRequest, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { settings: true }
+    });
+
+    const settings = (user?.settings as any) || {};
+    const competencyRatings = settings.competencyRatings || [];
+    const lastAssessment = settings.lastCompetencyAssessment || null;
+
+    res.json({
+      success: true,
+      data: {
+        ratings: competencyRatings,
+        lastAssessment
+      }
+    });
+  } catch (error) {
+    console.error('Get competencies error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get competencies'
+    });
+  }
+});
+
+// Save competency self-assessment ratings
+router.post('/competencies', async (req: AuthRequest, res) => {
+  try {
+    const { ratings } = req.body;
+    
+    // Convert ratings object to array format
+    const ratingsArray = Object.entries(ratings).map(([competencyId, rating]) => ({
+      competencyId,
+      rating,
+      updatedAt: new Date().toISOString()
+    }));
+
+    // Get current settings
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { settings: true }
+    });
+
+    const currentSettings = (user?.settings as any) || {};
+
+    // Update settings with new ratings
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: {
+        settings: {
+          ...currentSettings,
+          competencyRatings: ratingsArray,
+          lastCompetencyAssessment: new Date().toISOString()
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ratings: ratingsArray,
+        lastAssessment: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Save competencies error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save competencies'
+    });
+  }
+});
+
+// ============================================
+// Personal Goals / OKRs
+// ============================================
+
+// Get all goals for user
+router.get('/goals', async (req: AuthRequest, res) => {
+  try {
+    const { quarter, status } = req.query;
+    
+    const where: any = { userId: req.userId };
+    if (quarter) where.quarter = quarter;
+    if (status) where.status = status;
+
+    const goals = await prisma.goal.findMany({
+      where,
+      include: {
+        keyResults: true
+      },
+      orderBy: [
+        { status: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: goals
+    });
+  } catch (error) {
+    console.error('Get goals error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get goals'
+    });
+  }
+});
+
+// Create a new goal
+router.post('/goals', async (req: AuthRequest, res) => {
+  try {
+    const { title, description, category, quarter, targetDate, keyResults } = req.body;
+
+    if (!title || !category || !quarter) {
+      return res.status(400).json({
+        success: false,
+        error: 'Title, category, and quarter are required'
+      });
+    }
+
+    const goal = await prisma.goal.create({
+      data: {
+        userId: req.userId!,
+        title,
+        description,
+        category,
+        quarter,
+        targetDate: targetDate ? new Date(targetDate) : null,
+        keyResults: keyResults ? {
+          create: keyResults.map((kr: any) => ({
+            title: kr.title,
+            targetValue: kr.targetValue || 100,
+            unit: kr.unit
+          }))
+        } : undefined
+      },
+      include: {
+        keyResults: true
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: goal
+    });
+  } catch (error) {
+    console.error('Create goal error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create goal'
+    });
+  }
+});
+
+// Update a goal
+router.put('/goals/:id', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, category, quarter, targetDate, status, progress } = req.body;
+
+    // Verify ownership
+    const existing = await prisma.goal.findFirst({
+      where: { id, userId: req.userId }
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Goal not found'
+      });
+    }
+
+    const goal = await prisma.goal.update({
+      where: { id },
+      data: {
+        ...(title && { title }),
+        ...(description !== undefined && { description }),
+        ...(category && { category }),
+        ...(quarter && { quarter }),
+        ...(targetDate !== undefined && { targetDate: targetDate ? new Date(targetDate) : null }),
+        ...(status && { status }),
+        ...(progress !== undefined && { progress })
+      },
+      include: {
+        keyResults: true
+      }
+    });
+
+    res.json({
+      success: true,
+      data: goal
+    });
+  } catch (error) {
+    console.error('Update goal error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update goal'
+    });
+  }
+});
+
+// Delete a goal
+router.delete('/goals/:id', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verify ownership
+    const existing = await prisma.goal.findFirst({
+      where: { id, userId: req.userId }
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Goal not found'
+      });
+    }
+
+    await prisma.goal.delete({
+      where: { id }
+    });
+
+    res.json({
+      success: true,
+      data: { id }
+    });
+  } catch (error) {
+    console.error('Delete goal error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete goal'
+    });
+  }
+});
+
+// Update a key result
+router.put('/goals/:goalId/key-results/:krId', async (req: AuthRequest, res) => {
+  try {
+    const { goalId, krId } = req.params;
+    const { title, currentValue, targetValue, unit } = req.body;
+
+    // Verify ownership via goal
+    const goal = await prisma.goal.findFirst({
+      where: { id: goalId, userId: req.userId },
+      include: { keyResults: true }
+    });
+
+    if (!goal) {
+      return res.status(404).json({
+        success: false,
+        error: 'Goal not found'
+      });
+    }
+
+    const keyResult = await prisma.keyResult.update({
+      where: { id: krId },
+      data: {
+        ...(title && { title }),
+        ...(currentValue !== undefined && { currentValue }),
+        ...(targetValue !== undefined && { targetValue }),
+        ...(unit !== undefined && { unit })
+      }
+    });
+
+    // Recalculate goal progress based on key results
+    const allKeyResults = await prisma.keyResult.findMany({
+      where: { goalId }
+    });
+
+    if (allKeyResults.length > 0) {
+      const totalProgress = allKeyResults.reduce((sum, kr) => {
+        return sum + Math.min(100, (kr.currentValue / kr.targetValue) * 100);
+      }, 0);
+      const avgProgress = Math.round(totalProgress / allKeyResults.length);
+
+      await prisma.goal.update({
+        where: { id: goalId },
+        data: { progress: avgProgress }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: keyResult
+    });
+  } catch (error) {
+    console.error('Update key result error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update key result'
+    });
+  }
+});
+
+// Add a key result to a goal
+router.post('/goals/:goalId/key-results', async (req: AuthRequest, res) => {
+  try {
+    const { goalId } = req.params;
+    const { title, targetValue, unit } = req.body;
+
+    // Verify ownership
+    const goal = await prisma.goal.findFirst({
+      where: { id: goalId, userId: req.userId }
+    });
+
+    if (!goal) {
+      return res.status(404).json({
+        success: false,
+        error: 'Goal not found'
+      });
+    }
+
+    const keyResult = await prisma.keyResult.create({
+      data: {
+        goalId,
+        title,
+        targetValue: targetValue || 100,
+        unit
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: keyResult
+    });
+  } catch (error) {
+    console.error('Add key result error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add key result'
+    });
+  }
+});
+
+// Delete a key result
+router.delete('/goals/:goalId/key-results/:krId', async (req: AuthRequest, res) => {
+  try {
+    const { goalId, krId } = req.params;
+
+    // Verify ownership via goal
+    const goal = await prisma.goal.findFirst({
+      where: { id: goalId, userId: req.userId }
+    });
+
+    if (!goal) {
+      return res.status(404).json({
+        success: false,
+        error: 'Goal not found'
+      });
+    }
+
+    await prisma.keyResult.delete({
+      where: { id: krId }
+    });
+
+    res.json({
+      success: true,
+      data: { id: krId }
+    });
+  } catch (error) {
+    console.error('Delete key result error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete key result'
+    });
+  }
+});
+
 export default router;
 
