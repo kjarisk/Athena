@@ -9,6 +9,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.3.2",
     "@tanstack/react-query": "^5.62.0",
     "axios": "^1.7.9",
     "clsx": "^2.1.1",
@@ -38,4 +39,3 @@
     "vite": "^6.0.3"
   }
 }
-

@@ -10,14 +10,20 @@ export class MeetingAIService extends AIProviderBase {
   }
 
   /**
-   * Extract actions and key points from meeting notes
+   * Extract actions, decisions, and insights from meeting notes
    */
   async extractActions(notes: string, context?: string, userContext?: string): Promise<ExtractionResult> {
-    const basePrompt = `You are an AI assistant that helps extract action items from meeting notes.
+    const basePrompt = `You are an AI assistant that helps extract action items, decisions, and insights from meeting notes.
 Your task is to:
 1. Provide a brief summary of the notes
 2. Extract key points discussed
 3. Identify action items with titles, descriptions, priorities, and suggested due dates
+4. Identify decisions that were made during the meeting
+5. Identify insights (observations, risks, opportunities, or feedback)
+
+For actions, determine:
+- If something is blocking progress, mark isBlocker as true
+- Type should be "action" for tasks, "decision" for choices made, "insight" for observations
 
 Respond in JSON format:
 {
@@ -28,7 +34,25 @@ Respond in JSON format:
       "title": "Action title",
       "description": "Optional description",
       "priority": "low|medium|high|urgent",
-      "dueDate": "YYYY-MM-DD or null"
+      "dueDate": "YYYY-MM-DD or null",
+      "type": "action|decision|insight",
+      "isBlocker": false,
+      "assignee": "Person name or null"
+    }
+  ],
+  "decisions": [
+    {
+      "title": "Decision made",
+      "description": "Context and rationale",
+      "context": "What led to this decision",
+      "participants": ["person1", "person2"]
+    }
+  ],
+  "insights": [
+    {
+      "title": "Insight title",
+      "description": "Details",
+      "category": "observation|risk|opportunity|feedback"
     }
   ]
 }`;
@@ -43,14 +67,18 @@ Respond in JSON format:
       return this.parseJsonResponse(response, {
         summary: 'Could not extract summary',
         keyPoints: [],
-        actions: []
+        actions: [],
+        decisions: [],
+        insights: []
       });
     } catch (error) {
       console.error('AI extraction error:', error);
       return {
         summary: 'Error extracting data',
         keyPoints: [],
-        actions: []
+        actions: [],
+        decisions: [],
+        insights: []
       };
     }
   }

@@ -17,6 +17,9 @@ import workAreaRoutes from './routes/workAreas.js';
 import teamRoutes from './routes/teams.js';
 import playbookRoutes from './routes/playbook.js';
 import calendarRoutes from './routes/calendar.js';
+import reportsRoutes from './routes/reports.js';
+import templatesRoutes from './routes/templates.js';
+import statisticsRoutes from './routes/statistics.js';
 // Load environment variables
 dotenv.config();
 
@@ -51,6 +54,9 @@ app.use('/api/work-areas', workAreaRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/playbook', playbookRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/templates', templatesRoutes);
+app.use('/api/statistics', statisticsRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

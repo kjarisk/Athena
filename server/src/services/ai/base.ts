@@ -20,6 +20,20 @@ export interface ExtractionResult {
     description?: string;
     priority: 'low' | 'medium' | 'high' | 'urgent';
     dueDate?: string;
+    type: 'action' | 'decision' | 'insight';
+    isBlocker?: boolean;
+    assignee?: string;
+  }[];
+  decisions: {
+    title: string;
+    description?: string;
+    context?: string;
+    participants?: string[];
+  }[];
+  insights: {
+    title: string;
+    description?: string;
+    category: 'observation' | 'risk' | 'opportunity' | 'feedback';
   }[];
 }
 

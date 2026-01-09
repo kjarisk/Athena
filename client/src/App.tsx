@@ -17,6 +17,7 @@ import Achievements from '@/features/gamification/Achievements';
 import Settings from '@/features/settings/Settings';
 import NoteExtractor from '@/features/ai/NoteExtractor';
 import WeeklyReview from '@/features/review/WeeklyReview';
+import Statistics from '@/features/statistics/Statistics';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="achievements" element={<Achievements />} />
         <Route path="extract" element={<NoteExtractor />} />
         <Route path="review" element={<WeeklyReview />} />
+        <Route path="statistics" element={<Statistics />} />
         <Route path="settings" element={<Settings />} />
       </Route>
 

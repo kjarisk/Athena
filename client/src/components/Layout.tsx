@@ -14,7 +14,8 @@ import {
   LogOut,
   Menu,
   X,
-  CalendarCheck
+  CalendarCheck,
+  BarChart3
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'Actions', href: '/actions', icon: CheckSquare },
   { name: 'Responsibilities', href: '/responsibilities', icon: Target },
   { name: 'Weekly Review', href: '/review', icon: CalendarCheck },
+  { name: 'Statistics', href: '/statistics', icon: BarChart3 },
   { name: 'Skills', href: '/skills', icon: Sparkles },
   { name: 'Achievements', href: '/achievements', icon: Trophy },
   { name: 'Extract Notes', href: '/extract', icon: FileText },

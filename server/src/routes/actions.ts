@@ -22,6 +22,8 @@ router.get('/', async (req: AuthRequest, res) => {
       includeSubtasks,
       overdue,
       search,
+      type,
+      isBlocker,
       limit = '100' 
     } = req.query;
     
@@ -33,6 +35,14 @@ router.get('/', async (req: AuthRequest, res) => {
     
     if (priority) {
       where.priority = priority;
+    }
+    
+    if (type) {
+      where.type = type;
+    }
+    
+    if (isBlocker === 'true') {
+      where.isBlocker = true;
     }
     
     if (employeeId) {
@@ -284,7 +294,10 @@ router.post('/', async (req: AuthRequest, res) => {
       workAreaId,
       teamId,
       parentId,
-      links
+      links,
+      type,
+      isBlocker,
+      riskLevel
     } = req.body;
 
     if (!title) {
@@ -301,6 +314,9 @@ router.post('/', async (req: AuthRequest, res) => {
         description,
         status: status || 'PENDING',
         priority: priority || 'MEDIUM',
+        type: type || 'ACTION',
+        isBlocker: isBlocker || false,
+        riskLevel: riskLevel || undefined,
         dueDate: dueDate ? new Date(dueDate) : undefined,
         dueTime: dueTime || undefined,
         xpValue: xpValue || 10,

@@ -149,10 +149,15 @@ export interface Action {
   employeeId?: string;
   delegatedToId?: string;
   responsibilityAreaId?: string;
+  teamId?: string;
+  workAreaId?: string;
   title: string;
   description?: string;
   status: ActionStatus;
   priority: ActionPriority;
+  type: ActionType;
+  isBlocker: boolean;
+  riskLevel?: RiskLevel;
   dueDate?: Date;
   xpValue: number;
   completedAt?: Date;
@@ -166,6 +171,8 @@ export interface Action {
 export type ActionStatus = 'pending' | 'in_progress' | 'delegated' | 'completed' | 'cancelled';
 export type ActionPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type ActionSource = 'manual' | 'ai_extracted' | 'calendar' | 'workshop' | 'one_on_one';
+export type ActionType = 'action' | 'decision' | 'insight';
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
 export interface Attachment {
   id: string;
@@ -330,5 +337,225 @@ export interface PaginatedResponse<T> {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+// ============================================
+// Meeting Template Types
+// ============================================
+export interface MeetingTemplate {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  category: EventCategory;
+  agenda: AgendaItem[];
+  checkpoints: string[];
+  defaultDuration: number;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AgendaItem {
+  id: string;
+  title: string;
+  duration: number; // minutes
+  description?: string;
+  order: number;
+}
+
+// ============================================
+// Weekly Report Types
+// ============================================
+export interface WeeklyReport {
+  id: string;
+  userId: string;
+  weekStart: Date;
+  weekEnd: Date;
+  
+  // Metrics
+  actionsCompleted: number;
+  actionsCreated: number;
+  meetingHours: number;
+  focusHours: number;
+  decisionsCount: number;
+  
+  // Breakdowns
+  breakdownByArea?: Record<string, AreaBreakdown>;
+  breakdownByTeam?: Record<string, TeamBreakdown>;
+  
+  // AI content
+  summary?: string;
+  highlights: string[];
+  challenges: string[];
+  recommendations: string[];
+  
+  // Top items
+  topAccomplishments?: AccomplishmentSummary[];
+  decisionsLogged?: DecisionSummary[];
+  
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AreaBreakdown {
+  name: string;
+  actionsCompleted: number;
+  hoursSpent: number;
+}
+
+export interface TeamBreakdown {
+  name: string;
+  actionsCompleted: number;
+  hoursSpent: number;
+  meetingsHeld: number;
+}
+
+export interface AccomplishmentSummary {
+  title: string;
+  completedAt: Date;
+  xpEarned: number;
+}
+
+export interface DecisionSummary {
+  title: string;
+  description?: string;
+  madeAt: Date;
+  context?: string;
+}
+
+// ============================================
+// Team Metrics Types
+// ============================================
+export interface TeamMetrics {
+  id: string;
+  teamId: string;
+  date: Date;
+  
+  // Action metrics
+  openActions: number;
+  completedThisWeek: number;
+  overdueActions: number;
+  blockerCount: number;
+  avgCompletionDays?: number;
+  
+  // Engagement metrics
+  avgMood?: number;
+  oneOnOnesConducted: number;
+  teamMeetingsHeld: number;
+  
+  // Scores
+  velocityScore?: number;
+  healthScore?: number;
+  engagementScore?: number;
+}
+
+export interface TeamInsights {
+  team: {
+    id: string;
+    name: string;
+  };
+  metrics: TeamMetrics;
+  
+  // AI-generated insights
+  discussionTopics: DiscussionTopic[];
+  risks: TeamRisk[];
+  recommendations: string[];
+  
+  // Per-role talking points
+  talkingPoints: {
+    productLead?: string[];
+    productOwner?: string[];
+    departmentManager?: string[];
+  };
+}
+
+export interface DiscussionTopic {
+  topic: string;
+  priority: 'high' | 'medium' | 'low';
+  context?: string;
+  relatedEmployeeId?: string;
+  relatedActionId?: string;
+}
+
+export interface TeamRisk {
+  description: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  mitigation?: string;
+}
+
+// ============================================
+// Employee Report Types
+// ============================================
+export type ReportPeriod = 'quarterly' | 'yearly';
+
+export interface EmployeeReport {
+  id: string;
+  employeeId: string;
+  reportType: ReportPeriod;
+  periodStart: Date;
+  periodEnd: Date;
+  
+  // Metrics
+  actionsCompleted: number;
+  oneOnOnesCount: number;
+  avgMood?: number;
+  
+  // Changes
+  competencyChanges?: Record<string, { from: number; to: number }>;
+  skillsGained: string[];
+  
+  // Feedback
+  feedbackSummary?: string;
+  strengths: string[];
+  growthAreas: string[];
+  
+  // AI content
+  narrative?: string;
+  recommendations: string[];
+  
+  createdAt: Date;
+}
+
+// ============================================
+// Statistics Types
+// ============================================
+export interface DashboardStatistics {
+  // Action stats
+  totalActions: number;
+  completedActions: number;
+  pendingActions: number;
+  overdueActions: number;
+  blockers: number;
+  
+  // Decision stats
+  decisionsThisWeek: number;
+  decisionsThisMonth: number;
+  
+  // Meeting stats
+  meetingsThisWeek: number;
+  meetingHoursThisWeek: number;
+  oneOnOnesThisWeek: number;
+  
+  // Team stats
+  teamsManaged: number;
+  employeesManaged: number;
+  
+  // Velocity
+  weeklyVelocity: number; // actions completed / created
+  monthlyTrend: 'up' | 'down' | 'stable';
+  
+  // Breakdowns
+  actionsByTeam: Record<string, number>;
+  actionsByArea: Record<string, number>;
+  actionsByEmployee: Record<string, number>;
+}
+
+export interface TimeAllocation {
+  areaId: string;
+  areaName: string;
+  hoursThisWeek: number;
+  percentageOfTotal: number;
+  trend: 'up' | 'down' | 'stable';
 }
 

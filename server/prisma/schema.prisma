@@ -30,6 +30,8 @@ model User {
   teams             Team[]
   cadenceRules      CadenceRule[]
   aiContextRules    AIContextRule[]
+  meetingTemplates  MeetingTemplate[]
+  weeklyReports     WeeklyReport[]
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -94,6 +96,7 @@ model Employee {
   competencies    EmployeeCompetency[]
   cadenceRules    CadenceRule[]
   developmentPlans DevelopmentPlan[]
+  reports         EmployeeReport[]
   
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -202,6 +205,7 @@ model Team {
   actions     Action[]  @relation("TeamActions")
   events      Event[]   @relation("TeamEvents")
   cadenceRules CadenceRule[]
+  metricsSnapshots TeamMetricsSnapshot[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -342,6 +346,9 @@ model Action {
   description          String?
   status               ActionStatus      @default(PENDING)
   priority             ActionPriority    @default(MEDIUM)
+  type                 ActionType        @default(ACTION)
+  isBlocker            Boolean           @default(false)
+  riskLevel            RiskLevel?
   dueDate              DateTime?
   dueTime              String?           // Time in HH:mm format
   xpValue              Int               @default(10)
@@ -384,6 +391,19 @@ enum ActionSource {
   CALENDAR
   WORKSHOP
   ONE_ON_ONE
+}
+
+enum ActionType {
+  ACTION
+  DECISION
+  INSIGHT
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
 
 model Attachment {
@@ -624,5 +644,139 @@ model DevelopmentPlan {
   updatedAt   DateTime @updatedAt
   
   @@index([employeeId])
+}
+
+// ============================================
+// Meeting Templates
+// ============================================
+model MeetingTemplate {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String
+  description String?
+  category    EventCategory
+  agenda      Json     // Array of agenda items with time allocations
+  checkpoints String[] // Key points to cover
+  defaultDuration Int  @default(60) // minutes
+  isDefault   Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// ============================================
+// Weekly Reports
+// ============================================
+model WeeklyReport {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  weekStart       DateTime
+  weekEnd         DateTime
+  
+  // Metrics
+  actionsCompleted Int     @default(0)
+  actionsCreated   Int     @default(0)
+  meetingHours     Float   @default(0)
+  focusHours       Float   @default(0)
+  decisionsCount   Int     @default(0)
+  
+  // Breakdown by area/team
+  breakdownByArea  Json?   // { areaId: { name, actions, hours } }
+  breakdownByTeam  Json?   // { teamId: { name, actions, hours } }
+  
+  // AI Generated content
+  summary         String?
+  highlights      String[]
+  challenges      String[]
+  recommendations String[]
+  
+  // Top items
+  topAccomplishments Json? // Array of completed action summaries
+  decisionsLogged    Json? // Array of decisions made
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([userId, weekStart])
+  @@index([userId])
+}
+
+// ============================================
+// Team Metrics (for health/velocity tracking)
+// ============================================
+model TeamMetricsSnapshot {
+  id              String   @id @default(uuid())
+  teamId          String
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  date            DateTime @default(now())
+  
+  // Action metrics
+  openActions     Int      @default(0)
+  completedThisWeek Int    @default(0)
+  overdueActions  Int      @default(0)
+  blockerCount    Int      @default(0)
+  avgCompletionDays Float?
+  
+  // Engagement metrics
+  avgMood         Float?   // Average mood from 1:1s
+  oneOnOnesConducted Int   @default(0)
+  teamMeetingsHeld Int     @default(0)
+  
+  // Calculated scores
+  velocityScore   Float?   // Completed / Created ratio
+  healthScore     Float?   // Composite of mood, blockers, overdue
+  engagementScore Float?   // 1:1 frequency + meeting attendance
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([teamId])
+  @@index([date])
+}
+
+// ============================================
+// Employee Reports (Quarterly/Yearly)
+// ============================================
+model EmployeeReport {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  reportType      ReportPeriod
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  // Metrics
+  actionsCompleted Int     @default(0)
+  oneOnOnesCount   Int     @default(0)
+  avgMood          Float?
+  
+  // Competency changes
+  competencyChanges Json?  // { competencyName: { from, to } }
+  skillsGained     String[]
+  
+  // Collected feedback
+  feedbackSummary  String?
+  strengths        String[]
+  growthAreas      String[]
+  
+  // AI generated narrative
+  narrative        String?
+  recommendations  String[]
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([employeeId])
+}
+
+enum ReportPeriod {
+  QUARTERLY
+  YEARLY
 }
 
