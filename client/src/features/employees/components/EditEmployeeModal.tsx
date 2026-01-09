@@ -3,6 +3,8 @@ import { X } from 'lucide-react';
 import Modal, { ModalFooter } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
+import Combobox from '@/components/ui/Combobox';
+import { JOB_TITLE_SUGGESTIONS } from '@athena/shared';
 
 interface WorkArea {
   id: string;
@@ -117,11 +119,14 @@ export default function EditEmployeeModal({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Input
+          <Combobox
             label="Role"
             value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            onChange={(value) => setFormData({ ...formData, role: value })}
+            suggestions={JOB_TITLE_SUGGESTIONS}
+            placeholder="Type or select a role..."
             required
+            allowCustom
           />
           <Input
             label="Team"

@@ -7,12 +7,14 @@ import { apiHelpers } from '@/lib/api';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Input';
+import Combobox from '@/components/ui/Combobox';
 import Modal, { ModalFooter } from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { LoadingPage } from '@/components/ui/LoadingSpinner';
 import { formatDate, formatStatus } from '@/lib/utils';
+import { JOB_TITLE_SUGGESTIONS } from '@athena/shared';
 import toast from 'react-hot-toast';
 
 export default function EmployeeList() {
@@ -385,12 +387,14 @@ function CreateEmployeeModal({
           />
         </div>
         
-        <Input
+        <Combobox
           label="Role"
           value={formData.role}
-          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          placeholder="Senior Developer"
+          onChange={(value) => setFormData({ ...formData, role: value })}
+          suggestions={JOB_TITLE_SUGGESTIONS}
+          placeholder="Type or select a role..."
           required
+          allowCustom
         />
         
         <div className="grid grid-cols-2 gap-4">

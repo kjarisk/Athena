@@ -203,6 +203,7 @@ model Team {
   color       String   @default("#7BA087")
   
   members     TeamMember[]
+  notes       TeamNote[]
   actions     Action[]  @relation("TeamActions")
   events      Event[]   @relation("TeamEvents")
   cadenceRules CadenceRule[]
@@ -215,16 +216,48 @@ model Team {
   @@index([workAreaId])
 }
 
-model TeamMember {
-  id         String   @id @default(uuid())
+model TeamNote {
+  id         String       @id @default(uuid())
   teamId     String
-  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  team       Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
   
-  role       TeamRole @default(OTHER)
+  content    String
+  type       TeamNoteType @default(GENERAL)
   
-  createdAt  DateTime @default(now())
+  // Draft action extracted by AI (for review before creating actual action)
+  draftActions Json?      // Array of draft action objects
+  
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  
+  @@index([teamId])
+}
+
+enum TeamNoteType {
+  GENERAL
+  MEETING
+  RETROSPECTIVE
+  PLANNING
+  DISCOVERY
+}
+
+model TeamMember {
+  id           String    @id @default(uuid())
+  teamId       String
+  team         Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  employeeId   String?
+  employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // For external stakeholders (Project Leaders, Product Owners, etc.)
+  isExternal   Boolean   @default(false)
+  name         String?   // Required if isExternal, otherwise uses employee.name
+  email        String?   // Required if isExternal, otherwise uses employee.email
+  
+  role         TeamRole  @default(OTHER)
+  secondaryRole TeamRole? // For dual roles like Refinement Leader + Frontend
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   
   @@unique([teamId, employeeId])
   @@index([teamId])
@@ -232,11 +265,15 @@ model TeamMember {
 }
 
 enum TeamRole {
+  PROJECT_LEADER
+  PRODUCT_OWNER
   TEAM_LEAD
+  QA
+  REFINEMENT_LEADER
   FRONTEND
   BACKEND
+  FULLSTACK
   DESIGNER
-  QA
   DEVOPS
   OTHER
 }

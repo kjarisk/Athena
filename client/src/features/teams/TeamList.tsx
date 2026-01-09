@@ -128,21 +128,38 @@ export default function TeamList() {
                     </div>
                   </div>
 
-                  {/* Role composition */}
+                  {/* Team Members */}
                   <div className="mt-4 flex flex-wrap gap-1">
-                    {team.members?.slice(0, 6).map((member: any) => (
-                      <span 
-                        key={member.id}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-medium"
-                        style={{ 
-                          backgroundColor: `${ROLE_COLORS[member.role] || ROLE_COLORS.OTHER}20`,
-                          color: ROLE_COLORS[member.role] || ROLE_COLORS.OTHER
-                        }}
-                        title={`${member.employee.name} - ${ROLE_LABELS[member.role] || 'Other'}`}
-                      >
-                        {(ROLE_LABELS[member.role] || 'OT')?.slice(0, 2).toUpperCase()}
-                      </span>
-                    ))}
+                    {team.members?.slice(0, 6).map((member: any) => {
+                      const memberName = member.employee?.name || member.name || 'Unknown';
+                      const roleLabel = ROLE_LABELS[member.role] || 'Other';
+                      const roleAbbrev = member.role === 'PROJECT_LEADER' ? 'PL' 
+                        : member.role === 'PRODUCT_OWNER' ? 'PO'
+                        : member.role === 'TEAM_LEAD' ? 'TL'
+                        : member.role === 'REFINEMENT_LEADER' ? 'RL'
+                        : null;
+                      
+                      // Get initials from name
+                      const initials = memberName.split(' ')
+                        .map((n: string) => n[0])
+                        .slice(0, 2)
+                        .join('')
+                        .toUpperCase();
+                      
+                      return (
+                        <span 
+                          key={member.id}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-medium cursor-default"
+                          style={{ 
+                            backgroundColor: `${ROLE_COLORS[member.role] || ROLE_COLORS.OTHER}20`,
+                            color: ROLE_COLORS[member.role] || ROLE_COLORS.OTHER
+                          }}
+                          title={roleAbbrev ? `${roleAbbrev} - ${memberName}` : `${memberName} (${roleLabel})`}
+                        >
+                          {initials}
+                        </span>
+                      );
+                    })}
                     {team.members?.length > 6 && (
                       <span className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-medium bg-surface text-text-muted">
                         +{team.members.length - 6}
@@ -153,7 +170,7 @@ export default function TeamList() {
                   {/* Stats */}
                   <div className="mt-4 pt-4 border-t border-surface flex items-center justify-between text-sm">
                     <span className="text-text-secondary">
-                      {team._count?.members || 0} members
+                      {team.members?.length || 0} members
                     </span>
                     <div className="flex items-center gap-3 text-text-muted">
                       <span>{team._count?.actions || 0} actions</span>

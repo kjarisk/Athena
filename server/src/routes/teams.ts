@@ -50,9 +50,50 @@ router.get('/', async (req: AuthRequest, res) => {
       orderBy: { name: 'asc' }
     });
 
+    // For each team, also fetch auto-included employees
+    const teamsWithAutoMembers = await Promise.all(teams.map(async (team) => {
+      const explicitEmployeeIds = team.members
+        .filter(m => m.employeeId)
+        .map(m => m.employeeId);
+
+      const autoEmployees = await prisma.employee.findMany({
+        where: {
+          userId: req.userId,
+          team: { equals: team.name, mode: 'insensitive' },
+          id: { notIn: explicitEmployeeIds as string[] }
+        },
+        select: {
+          id: true,
+          name: true,
+          role: true,
+          avatarUrl: true,
+          status: true
+        }
+      });
+
+      // Convert auto-included employees to member format
+      const autoMembers = autoEmployees.map(emp => ({
+        id: `auto-${emp.id}`,
+        teamId: team.id,
+        employeeId: emp.id,
+        employee: emp,
+        role: mapEmployeeRoleToTeamRole(emp.role),
+        secondaryRole: null,
+        isExternal: false,
+        isAutoIncluded: true,
+        name: null,
+        email: null
+      }));
+
+      return {
+        ...team,
+        members: [...team.members, ...autoMembers]
+      };
+    }));
+
     res.json({
       success: true,
-      data: teams
+      data: teamsWithAutoMembers
     });
   } catch (error) {
     console.error('Get teams error:', error);
@@ -136,9 +177,56 @@ router.get('/:id', async (req: AuthRequest, res) => {
       });
     }
 
+    // Fetch employees who have this team name in their "team" field
+    // but are NOT already in the explicit members list
+    const explicitEmployeeIds = team.members
+      .filter(m => m.employeeId)
+      .map(m => m.employeeId);
+
+    const autoEmployees = await prisma.employee.findMany({
+      where: {
+        userId: req.userId,
+        team: { equals: team.name, mode: 'insensitive' },
+        id: { notIn: explicitEmployeeIds as string[] }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        status: true,
+        startDate: true
+      }
+    });
+
+    // Convert auto-included employees to member format
+    const autoMembers = autoEmployees.map(emp => ({
+      id: `auto-${emp.id}`, // Prefixed ID to distinguish from explicit members
+      teamId: team.id,
+      employeeId: emp.id,
+      employee: emp,
+      role: mapEmployeeRoleToTeamRole(emp.role),
+      secondaryRole: null,
+      isExternal: false,
+      isAutoIncluded: true, // Flag to indicate this came from employee.team field
+      name: null,
+      email: null,
+      createdAt: new Date()
+    }));
+
+    // Merge explicit members with auto-included ones
+    const allMembers = [
+      ...team.members.map(m => ({ ...m, isAutoIncluded: false })),
+      ...autoMembers
+    ];
+
     res.json({
       success: true,
-      data: team
+      data: {
+        ...team,
+        members: allMembers
+      }
     });
   } catch (error) {
     console.error('Get team error:', error);
@@ -148,6 +236,42 @@ router.get('/:id', async (req: AuthRequest, res) => {
     });
   }
 });
+
+// Helper function to map employee role string to TeamRole enum
+function mapEmployeeRoleToTeamRole(role: string): string {
+  const lowerRole = role.toLowerCase();
+  
+  // Check for keywords in any position (handles "Senior Frontend Developer", "Mid-level Backend", etc.)
+  if (lowerRole.includes('frontend') || lowerRole.includes('front-end') || lowerRole.includes('front end')) {
+    return 'FRONTEND';
+  }
+  if (lowerRole.includes('backend') || lowerRole.includes('back-end') || lowerRole.includes('back end')) {
+    return 'BACKEND';
+  }
+  if (lowerRole.includes('fullstack') || lowerRole.includes('full-stack') || lowerRole.includes('full stack')) {
+    return 'FULLSTACK';
+  }
+  if (lowerRole.includes('designer') || lowerRole.includes('ux') || lowerRole.includes('ui')) {
+    return 'DESIGNER';
+  }
+  if (lowerRole.includes('qa') || lowerRole.includes('quality') || lowerRole.includes('test')) {
+    return 'QA';
+  }
+  if (lowerRole.includes('team lead') || lowerRole.includes('tech lead') || lowerRole.includes('lead developer')) {
+    return 'TEAM_LEAD';
+  }
+  if (lowerRole.includes('devops') || lowerRole.includes('sre') || lowerRole.includes('platform') || lowerRole.includes('infrastructure')) {
+    return 'DEVOPS';
+  }
+  if (lowerRole.includes('project leader') || lowerRole.includes('project manager')) {
+    return 'PROJECT_LEADER';
+  }
+  if (lowerRole.includes('product owner') || lowerRole.includes('product manager')) {
+    return 'PRODUCT_OWNER';
+  }
+  
+  return 'OTHER';
+}
 
 // Create team
 router.post('/', async (req: AuthRequest, res) => {
@@ -319,17 +443,10 @@ router.delete('/:id', async (req: AuthRequest, res) => {
   }
 });
 
-// Add member to team
+// Add member to team (supports both employees and external stakeholders)
 router.post('/:id/members', async (req: AuthRequest, res) => {
   try {
-    const { employeeId, role } = req.body;
-
-    if (!employeeId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Employee ID is required'
-      });
-    }
+    const { employeeId, role, secondaryRole, isExternal, name, email } = req.body;
 
     // Verify team belongs to user
     const team = await prisma.team.findFirst({
@@ -343,6 +460,41 @@ router.post('/:id/members', async (req: AuthRequest, res) => {
       return res.status(404).json({
         success: false,
         error: 'Team not found'
+      });
+    }
+
+    // For external stakeholders
+    if (isExternal) {
+      if (!name) {
+        return res.status(400).json({
+          success: false,
+          error: 'Name is required for external stakeholders'
+        });
+      }
+
+      const member = await prisma.teamMember.create({
+        data: {
+          teamId: req.params.id,
+          isExternal: true,
+          name,
+          email,
+          role: role || 'PROJECT_LEADER',
+          secondaryRole
+        }
+      });
+
+      res.status(201).json({
+        success: true,
+        data: { ...member, employee: null }
+      });
+      return;
+    }
+
+    // For internal employees
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Employee ID is required for internal members'
       });
     }
 
@@ -382,13 +534,16 @@ router.post('/:id/members', async (req: AuthRequest, res) => {
       data: {
         teamId: req.params.id,
         employeeId,
-        role: role || 'OTHER'
+        role: role || 'OTHER',
+        secondaryRole,
+        isExternal: false
       },
       include: {
         employee: {
           select: {
             id: true,
             name: true,
+            email: true,
             role: true,
             avatarUrl: true,
             status: true
@@ -413,7 +568,7 @@ router.post('/:id/members', async (req: AuthRequest, res) => {
 // Update member role
 router.patch('/:id/members/:memberId', async (req: AuthRequest, res) => {
   try {
-    const { role } = req.body;
+    const { role, secondaryRole, name, email, employeeId } = req.body;
 
     // Verify team belongs to user
     const team = await prisma.team.findFirst({
@@ -430,20 +585,56 @@ router.patch('/:id/members/:memberId', async (req: AuthRequest, res) => {
       });
     }
 
-    const member = await prisma.teamMember.update({
-      where: { id: req.params.memberId },
-      data: { role },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
-            avatarUrl: true
+    const updateData: any = {};
+    if (role !== undefined) updateData.role = role;
+    if (secondaryRole !== undefined) updateData.secondaryRole = secondaryRole;
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+
+    let member;
+
+    // Check if this is an auto-included member (ID starts with 'auto-')
+    if (req.params.memberId.startsWith('auto-')) {
+      const actualEmployeeId = employeeId || req.params.memberId.replace('auto-', '');
+      
+      // Create a new TeamMember record for this auto-included employee
+      member = await prisma.teamMember.create({
+        data: {
+          teamId: team.id,
+          employeeId: actualEmployeeId,
+          role: role || 'OTHER',
+          secondaryRole: secondaryRole || null
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              avatarUrl: true
+            }
           }
         }
-      }
-    });
+      });
+    } else {
+      // Regular update for existing TeamMember records
+      member = await prisma.teamMember.update({
+        where: { id: req.params.memberId },
+        data: updateData,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              avatarUrl: true
+            }
+          }
+        }
+      });
+    }
 
     res.json({
       success: true,
@@ -489,6 +680,162 @@ router.delete('/:id/members/:memberId', async (req: AuthRequest, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to remove team member'
+    });
+  }
+});
+
+// ============================================
+// Team Notes
+// ============================================
+
+// Get notes for a team
+router.get('/:id/notes', async (req: AuthRequest, res) => {
+  try {
+    const team = await prisma.team.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.userId
+      }
+    });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    const notes = await prisma.teamNote.findMany({
+      where: { teamId: req.params.id },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({
+      success: true,
+      data: notes
+    });
+  } catch (error) {
+    console.error('Get team notes error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get team notes'
+    });
+  }
+});
+
+// Add note to team
+router.post('/:id/notes', async (req: AuthRequest, res) => {
+  try {
+    const { content, type, draftActions } = req.body;
+
+    const team = await prisma.team.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.userId
+      }
+    });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    const note = await prisma.teamNote.create({
+      data: {
+        teamId: team.id,
+        content,
+        type: type || 'GENERAL',
+        draftActions: draftActions || null
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: note
+    });
+  } catch (error) {
+    console.error('Add team note error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add team note'
+    });
+  }
+});
+
+// Update team note
+router.patch('/:id/notes/:noteId', async (req: AuthRequest, res) => {
+  try {
+    const { content, type, draftActions } = req.body;
+
+    const team = await prisma.team.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.userId
+      }
+    });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    const updateData: any = {};
+    if (content !== undefined) updateData.content = content;
+    if (type !== undefined) updateData.type = type;
+    if (draftActions !== undefined) updateData.draftActions = draftActions;
+
+    const note = await prisma.teamNote.update({
+      where: { id: req.params.noteId },
+      data: updateData
+    });
+
+    res.json({
+      success: true,
+      data: note
+    });
+  } catch (error) {
+    console.error('Update team note error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update team note'
+    });
+  }
+});
+
+// Delete team note
+router.delete('/:id/notes/:noteId', async (req: AuthRequest, res) => {
+  try {
+    const team = await prisma.team.findFirst({
+      where: {
+        id: req.params.id,
+        userId: req.userId
+      }
+    });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found'
+      });
+    }
+
+    await prisma.teamNote.delete({
+      where: { id: req.params.noteId }
+    });
+
+    res.json({
+      success: true,
+      message: 'Note deleted'
+    });
+  } catch (error) {
+    console.error('Delete team note error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete team note'
     });
   }
 });

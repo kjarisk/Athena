@@ -12,63 +12,114 @@
  * Uses the Ori + Hades inspired aesthetic with warm, ethereal colors
  */
 export const ROLE_COLORS: Record<string, string> = {
-  TEAM_LEAD: '#D4A574',       // Warm sand/gold
-  FRONTEND: '#7BA087',        // Forest green
-  BACKEND: '#8FBC8F',         // Light sage
-  DESIGNER: '#E8B86D',        // Golden amber
-  QA: '#CD7F6E',              // Terracotta
-  DEVOPS: '#DAA520',          // Goldenrod
-  FULLSTACK: '#9B7BB8',       // Soft purple
-  PRODUCT: '#7EB8C9',         // Ocean blue
-  DATA: '#C9A86C',            // Honey gold
-  SECURITY: '#B87A7A',        // Dusty rose
-  MOBILE: '#6B9B8A',          // Teal green
-  ARCHITECT: '#A67C93',       // Mauve
-  MANAGER: '#D4A574',         // Warm sand/gold (same as lead)
-  INTERN: '#B5C4A8',          // Pale green
-  OTHER: '#9CA89D'            // Neutral sage
+  PROJECT_LEADER: '#A67C93', // Mauve (external leadership)
+  PRODUCT_OWNER: '#7EB8C9',  // Ocean blue (external stakeholder)
+  TEAM_LEAD: '#D4A574',      // Warm sand/gold
+  QA: '#CD7F6E',             // Terracotta
+  REFINEMENT_LEADER: '#C9A86C', // Honey gold (special role)
+  FRONTEND: '#7BA087',       // Forest green
+  BACKEND: '#8FBC8F',        // Light sage
+  FULLSTACK: '#9B7BB8',      // Soft purple
+  DESIGNER: '#E8B86D',       // Golden amber
+  DEVOPS: '#DAA520',         // Goldenrod
+  OTHER: '#9CA89D'           // Neutral sage
 };
 
 /**
  * Human-readable labels for team roles
  */
 export const ROLE_LABELS: Record<string, string> = {
+  PROJECT_LEADER: 'Project Leader',
+  PRODUCT_OWNER: 'Product Owner',
   TEAM_LEAD: 'Team Lead',
+  QA: 'QA',
+  REFINEMENT_LEADER: 'Refinement Leader',
   FRONTEND: 'Frontend',
   BACKEND: 'Backend',
-  DESIGNER: 'Designer',
-  QA: 'QA',
-  DEVOPS: 'DevOps',
   FULLSTACK: 'Full Stack',
-  PRODUCT: 'Product',
-  DATA: 'Data',
-  SECURITY: 'Security',
-  MOBILE: 'Mobile',
-  ARCHITECT: 'Architect',
-  MANAGER: 'Manager',
-  INTERN: 'Intern',
+  DESIGNER: 'Designer',
+  DEVOPS: 'DevOps',
   OTHER: 'Other'
 };
 
 /**
- * Order for displaying roles (most senior first)
+ * Order for displaying roles (hierarchical order)
+ * Project Leader > Product Owner > Team Lead > QA > Refinement Leader > Developers
  */
 export const ROLE_ORDER = [
+  'PROJECT_LEADER',
+  'PRODUCT_OWNER',
   'TEAM_LEAD',
-  'MANAGER',
-  'ARCHITECT',
+  'QA',
+  'REFINEMENT_LEADER',
   'FRONTEND',
   'BACKEND',
   'FULLSTACK',
-  'MOBILE',
   'DESIGNER',
-  'PRODUCT',
-  'DATA',
-  'SECURITY',
-  'QA',
   'DEVOPS',
-  'INTERN',
   'OTHER'
+];
+
+/**
+ * Roles that are typically external stakeholders (not part of the core team)
+ */
+export const EXTERNAL_ROLES = ['PROJECT_LEADER', 'PRODUCT_OWNER'];
+
+/**
+ * Roles that can be assigned as a secondary role
+ */
+export const SECONDARY_ROLES = ['REFINEMENT_LEADER', 'QA'];
+
+// ============================================
+// Job Title Suggestions
+// ============================================
+
+/**
+ * Predefined job titles for employee roles with autocomplete
+ * Organized by category for easier selection
+ */
+export const JOB_TITLE_SUGGESTIONS = [
+  // Frontend
+  'Junior Frontend Developer',
+  'Mid-Level Frontend Developer',
+  'Senior Frontend Developer',
+  'Lead Frontend Developer',
+  // Backend  
+  'Junior Backend Developer',
+  'Mid-Level Backend Developer',
+  'Senior Backend Developer',
+  'Lead Backend Developer',
+  // Full Stack
+  'Junior Full Stack Developer',
+  'Mid-Level Full Stack Developer',
+  'Senior Full Stack Developer',
+  'Lead Full Stack Developer',
+  // Design
+  'Junior Designer',
+  'Mid-Level Designer',
+  'Senior Designer',
+  'Lead Designer',
+  'UX Designer',
+  'UI Designer',
+  'Product Designer',
+  // QA
+  'Junior QA Engineer',
+  'Mid-Level QA Engineer',
+  'Senior QA Engineer',
+  'QA Lead',
+  // DevOps
+  'Junior DevOps Engineer',
+  'Mid-Level DevOps Engineer',
+  'Senior DevOps Engineer',
+  'DevOps Lead',
+  'SRE Engineer',
+  'Platform Engineer',
+  // Leadership
+  'Team Lead',
+  'Tech Lead',
+  'Engineering Manager',
+  'Architect',
+  'Principal Engineer'
 ];
 
 // ============================================

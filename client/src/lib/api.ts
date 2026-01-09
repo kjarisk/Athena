@@ -182,6 +182,16 @@ export const apiHelpers = {
     api.patch(`/teams/${teamId}/members/${memberId}`, data),
   removeTeamMember: (teamId: string, memberId: string) => 
     api.delete(`/teams/${teamId}/members/${memberId}`),
+  
+  // Team Notes
+  getTeamNotes: (teamId: string) => 
+    api.get(`/teams/${teamId}/notes`),
+  addTeamNote: (teamId: string, data: { content: string; type?: string; draftActions?: any[] }) => 
+    api.post(`/teams/${teamId}/notes`, data),
+  updateTeamNote: (teamId: string, noteId: string, data: any) => 
+    api.patch(`/teams/${teamId}/notes/${noteId}`, data),
+  deleteTeamNote: (teamId: string, noteId: string) => 
+    api.delete(`/teams/${teamId}/notes/${noteId}`),
 
   // Leadership Playbook
   getCadenceRules: () => 
