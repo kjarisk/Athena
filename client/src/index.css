@@ -115,7 +115,7 @@ body {
 
 /* Card styles */
 .card {
-  @apply bg-white rounded-2xl shadow-card transition-all duration-300;
+  @apply bg-surface rounded-2xl shadow-card transition-all duration-300;
 }
 
 .card:hover {
@@ -173,7 +173,7 @@ body {
 /* Input styles */
 .input {
   @apply w-full px-5 py-3 rounded-xl border-2 border-surface;
-  @apply bg-white text-text-primary placeholder:text-text-muted;
+  @apply bg-surface text-text-primary placeholder:text-text-muted;
   @apply transition-all duration-200;
   @apply focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-glow;
   @apply text-base;
@@ -185,23 +185,28 @@ body {
 }
 
 .badge-primary {
-  @apply bg-primary/20 text-primary-dark;
+  background-color: rgba(212, 165, 116, 0.2);
+  @apply text-primary-dark;
 }
 
 .badge-secondary {
-  @apply bg-secondary/20 text-secondary-dark;
+  background-color: rgba(123, 160, 135, 0.2);
+  @apply text-secondary-dark;
 }
 
 .badge-success {
-  @apply bg-success/20 text-success-dark;
+  background-color: rgba(143, 188, 143, 0.2);
+  @apply text-success-dark;
 }
 
 .badge-warning {
-  @apply bg-warning/20 text-warning-dark;
+  background-color: rgba(218, 165, 32, 0.2);
+  @apply text-warning-dark;
 }
 
 .badge-danger {
-  @apply bg-danger/20 text-danger-dark;
+  background-color: rgba(205, 127, 110, 0.2);
+  @apply text-danger-dark;
 }
 
 /* Progress bar */
@@ -234,7 +239,8 @@ body {
 }
 
 .skill-node-locked {
-  @apply bg-surface border-2 border-text-muted/30 text-text-muted;
+  @apply bg-surface border-2 text-text-muted;
+  border-color: rgba(156, 168, 157, 0.3);
 }
 
 .skill-node-available {
@@ -266,15 +272,18 @@ body {
 }
 
 .responsibility-card-teamlead {
-  @apply border-teamlead/30 hover:border-teamlead hover:shadow-glow-green;
+  border-color: rgba(123, 160, 135, 0.3);
+  @apply hover:border-teamlead hover:shadow-glow-green;
 }
 
 .responsibility-card-competence {
-  @apply border-competence/30 hover:border-competence hover:shadow-glow;
+  border-color: rgba(212, 165, 116, 0.3);
+  @apply hover:border-competence hover:shadow-glow;
 }
 
 .responsibility-card-manager {
-  @apply border-manager/30 hover:border-manager;
+  border-color: rgba(232, 184, 109, 0.3);
+  @apply hover:border-manager;
   @apply hover:shadow-[0_0_20px_rgba(232,184,109,0.4)];
 }
 
@@ -285,7 +294,8 @@ body {
 }
 
 .nav-item-active {
-  @apply bg-primary/10 text-primary font-semibold;
+  background-color: rgba(212, 165, 116, 0.1);
+  @apply text-primary font-semibold;
   @apply shadow-[inset_0_0_0_1px_rgba(212,165,116,0.3)];
 }
 

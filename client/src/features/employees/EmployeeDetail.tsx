@@ -166,7 +166,7 @@ export default function EmployeeDetail() {
             className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
               activeTab === tab.id
-                ? 'bg-white text-text-primary shadow-sm'
+                ? 'bg-surface text-text-primary shadow-sm'
                 : 'text-text-secondary hover:text-text-primary'
             )}
           >

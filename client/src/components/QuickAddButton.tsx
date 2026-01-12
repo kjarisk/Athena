@@ -100,7 +100,7 @@ export default function QuickAddButton({ className }: QuickAddButtonProps) {
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-24 right-6 bg-white rounded-2xl shadow-xl border border-surface p-2 z-40"
+            className="fixed bottom-24 right-6 bg-surface rounded-2xl shadow-xl border border-surface p-2 z-40"
           >
             {quickOptions.map((option, i) => (
               <motion.button

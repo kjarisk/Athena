@@ -17,11 +17,11 @@ const Card = forwardRef<HTMLDivElement, CardProps>(({
   ...props
 }, ref) => {
   const variants = {
-    default: 'bg-white shadow-card',
-    glow: 'bg-white shadow-card card-glow',
-    teamlead: 'bg-white border-2 border-teamlead/30 hover:border-teamlead hover:shadow-glow-green',
-    competence: 'bg-white border-2 border-competence/30 hover:border-competence hover:shadow-glow',
-    manager: 'bg-white border-2 border-manager/30 hover:border-manager hover:shadow-[0_0_20px_rgba(232,184,109,0.4)]'
+    default: 'bg-surface shadow-card',
+    glow: 'bg-surface shadow-card card-glow',
+    teamlead: 'bg-surface border-2 border-teamlead/30 hover:border-teamlead hover:shadow-glow-green',
+    competence: 'bg-surface border-2 border-competence/30 hover:border-competence hover:shadow-glow',
+    manager: 'bg-surface border-2 border-manager/30 hover:border-manager hover:shadow-[0_0_20px_rgba(232,184,109,0.4)]'
   };
 
   const paddings = {

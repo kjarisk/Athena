@@ -276,7 +276,7 @@ export default function LeadershipCadence({ dueItems = [] }: LeadershipCadencePr
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -10 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-surface z-20 overflow-hidden"
+                            className="absolute right-0 mt-1 w-48 bg-surface rounded-lg shadow-xl border border-surface z-20 overflow-hidden"
                           >
                             <button
                               onClick={() => handleCreateEvent(item)}

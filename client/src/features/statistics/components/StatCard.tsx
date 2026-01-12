@@ -38,7 +38,7 @@ export function StatCard({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -2 }}
-      className="bg-white rounded-2xl p-4 shadow-card hover:shadow-card-hover transition-all duration-300"
+      className="bg-surface rounded-2xl p-4 shadow-card hover:shadow-card-hover transition-all duration-300"
     >
       <div className="flex items-start justify-between">
         <div className={`p-2 rounded-lg ${iconColorClasses[color]}`}>

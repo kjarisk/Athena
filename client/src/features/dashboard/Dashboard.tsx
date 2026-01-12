@@ -363,7 +363,7 @@ export default function Dashboard() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute right-0 mt-2 w-64 bg-background border border-border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto"
+                  className="absolute right-0 mt-2 w-64 bg-surface border border-border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto"
                 >
                   <div className="p-2">
                     <button

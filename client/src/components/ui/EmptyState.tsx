@@ -51,7 +51,7 @@ export default function EmptyState({
       className={cn(
         'flex flex-col items-center justify-center text-center',
         sizes.container,
-        variant === 'card' && 'bg-white rounded-2xl border border-surface shadow-sm',
+        variant === 'card' && 'bg-surface rounded-2xl border border-surface shadow-sm',
         className
       )}
     >

@@ -331,7 +331,7 @@ function CreateEventModal({ isOpen, onClose, eventTypes, employees, teams, onSub
                     "px-3 py-1.5 rounded-lg text-sm transition-all",
                     formData.participantIds.includes(emp.id)
                       ? "bg-primary text-white"
-                      : "bg-white border border-border hover:border-primary"
+                      : "bg-surface border border-border hover:border-primary"
                   )}
                 >
                   {emp.name}

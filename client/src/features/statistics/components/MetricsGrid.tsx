@@ -64,7 +64,7 @@ export function MetricsGrid({ stats }: MetricsGridProps) {
       </div>
 
       {/* Progress Bar */}
-      <div className="bg-white rounded-2xl p-4 shadow-card">
+      <div className="bg-surface rounded-2xl p-4 shadow-card">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-text-secondary">
             Overall Completion Rate

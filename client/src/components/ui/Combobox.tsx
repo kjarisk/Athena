@@ -106,7 +106,7 @@ export default function Combobox({
           required={required}
           className={cn(
             'w-full px-3 py-2.5 pr-16',
-            'bg-white rounded-xl',
+            'bg-surface rounded-xl',
             'border border-border',
             'text-text-primary placeholder:text-text-muted',
             'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
@@ -138,7 +138,7 @@ export default function Combobox({
       </div>
 
       {isOpen && filteredSuggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 py-1 bg-white rounded-xl border border-border shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-50 w-full mt-1 py-1 bg-surface rounded-xl border border-border shadow-lg max-h-60 overflow-auto">
           {filteredSuggestions.map((suggestion, index) => (
             <button
               key={index}
@@ -157,7 +157,7 @@ export default function Combobox({
       )}
 
       {isOpen && filteredSuggestions.length === 0 && inputValue && allowCustom && (
-        <div className="absolute z-50 w-full mt-1 py-2 px-3 bg-white rounded-xl border border-border shadow-lg">
+        <div className="absolute z-50 w-full mt-1 py-2 px-3 bg-surface rounded-xl border border-border shadow-lg">
           <p className="text-sm text-text-muted">
             Press Enter to use "{inputValue}"
           </p>

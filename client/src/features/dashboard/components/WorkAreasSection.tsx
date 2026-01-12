@@ -120,7 +120,7 @@ export function WorkAreasSection({
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="absolute right-0 top-8 bg-white rounded-xl shadow-lg border border-surface py-1 min-w-[140px] z-10"
+                      className="absolute right-0 top-8 bg-surface rounded-xl shadow-lg border border-surface py-1 min-w-[140px] z-10"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button

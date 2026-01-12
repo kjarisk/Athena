@@ -48,7 +48,7 @@ export default function Modal({
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.2 }}
               className={cn(
-                'w-full bg-white rounded-2xl shadow-xl overflow-hidden',
+                'w-full bg-surface rounded-2xl shadow-xl overflow-hidden',
                 sizes[size]
               )}
             >

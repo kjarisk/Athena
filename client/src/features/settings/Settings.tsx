@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { 
@@ -20,6 +20,17 @@ import { apiHelpers } from '@/lib/api';
 import toast from 'react-hot-toast';
 import OllamaModelSelector from '@/components/OllamaModelSelector';
 
+// Helper to apply theme immediately
+const applyTheme = (theme: 'light' | 'dark' | 'system') => {
+  const root = document.documentElement;
+  if (theme === 'system') {
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    root.setAttribute('data-theme', systemTheme);
+  } else {
+    root.setAttribute('data-theme', theme);
+  }
+};
+
 // Import extracted components
 import { PlaybookSettings, IntegrationSettings } from './components';
 
@@ -37,6 +48,7 @@ export default function Settings() {
   const { user, updateSettings } = useAuthStore();
   const [activeSection, setActiveSection] = useState('profile');
   const [isSaving, setIsSaving] = useState(false);
+  const savedTheme = (user?.settings?.theme as 'light' | 'dark' | 'system') || 'light';
   const [localSettings, setLocalSettings] = useState<{
     theme: 'light' | 'dark' | 'system';
     aiProvider: 'openai' | 'ollama';
@@ -57,6 +69,14 @@ export default function Settings() {
     defaultActionPriority: 'medium',
     notificationsEnabled: true
   });
+
+  // Restore saved theme when leaving page without saving
+  useEffect(() => {
+    return () => {
+      // On unmount, restore the saved theme from the store
+      applyTheme(savedTheme);
+    };
+  }, [savedTheme]);
 
   // Fetch employees for playbook target selection
   const { data: employees } = useQuery({
@@ -183,10 +203,15 @@ export default function Settings() {
                         ].map((option) => (
                           <button
                             key={option.value}
-                            onClick={() => setLocalSettings({ 
-                              ...localSettings, 
-                              theme: option.value as any 
-                            })}
+                            onClick={() => {
+                              const newTheme = option.value as 'light' | 'dark' | 'system';
+                              setLocalSettings({ 
+                                ...localSettings, 
+                                theme: newTheme
+                              });
+                              // Apply theme immediately for instant preview
+                              applyTheme(newTheme);
+                            }}
                             className={cn(
                               "p-4 rounded-xl border-2 text-left transition-all",
                               localSettings.theme === option.value

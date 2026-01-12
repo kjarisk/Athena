@@ -65,7 +65,7 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed top-0 left-0 z-50 h-full w-72 bg-white/90 backdrop-blur-md shadow-xl",
+        "fixed top-0 left-0 z-50 h-full w-72 bg-surface/95 backdrop-blur-md shadow-xl",
         "transform transition-transform duration-300 ease-in-out lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
@@ -163,7 +163,7 @@ export default function Layout() {
       </aside>
 
       {/* Mobile header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white/90 backdrop-blur-md border-b border-surface">
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-surface/95 backdrop-blur-md border-b border-surface">
         <div className="flex items-center justify-between px-4 py-3">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -209,7 +209,7 @@ export default function Layout() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed top-4 right-4 z-50 lg:hidden p-2 rounded-full bg-white shadow-lg"
+            className="fixed top-4 right-4 z-50 lg:hidden p-2 rounded-full bg-surface shadow-lg"
           >
             <X className="w-6 h-6" />
           </motion.button>

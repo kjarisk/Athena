@@ -8,26 +8,27 @@ export default {
     extend: {
       colors: {
         // Ori + Hades inspired palette (warm, ethereal)
-        background: '#FDFCFA',
-        surface: '#F7F5F0',
-        card: '#FFFFFF',
+        // Using CSS variables for theme support
+        background: 'var(--color-background)',
+        surface: 'var(--color-surface)',
+        card: 'var(--color-surface)',
         
         primary: {
-          DEFAULT: '#D4A574',
+          DEFAULT: 'var(--color-primary)',
           light: '#E8C9A8',
           dark: '#B8875A',
-          glow: 'rgba(212, 165, 116, 0.4)'
+          glow: 'var(--color-primary-glow)'
         },
         
         secondary: {
-          DEFAULT: '#7BA087',
+          DEFAULT: 'var(--color-secondary)',
           light: '#9DBAA6',
           dark: '#5D8268',
-          glow: 'rgba(123, 160, 135, 0.3)'
+          glow: 'var(--color-secondary-glow)'
         },
         
         accent: {
-          DEFAULT: '#E8B86D',
+          DEFAULT: 'var(--color-accent)',
           light: '#F0D09A',
           dark: '#D09A4A'
         },
@@ -51,9 +52,14 @@ export default {
         },
         
         text: {
-          primary: '#2C3E2D',
-          secondary: '#6B7B6C',
-          muted: '#9CA89D'
+          primary: 'var(--color-text)',
+          secondary: 'var(--color-text-secondary)',
+          muted: 'var(--color-text-muted)'
+        },
+        
+        border: {
+          DEFAULT: 'var(--color-border)',
+          light: 'var(--color-border-light)'
         },
         
         // Role-specific colors
